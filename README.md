@@ -69,6 +69,19 @@ each part presents them, and pronounce the jargon the way people say it (W3C is
 Fred and Zarvox. Elsewhere, it pitches an English voice down. The music ducks
 while a voice speaks.
 
+## Credits
+
+- Inspired by [LOL FUCK AI](https://xplsv.github.io/lolfuckai/), a three.js
+  demoscene production by [mrdoob](https://github.com/mrdoob) of XPLSV.
+- Built with [three.js](https://threejs.org/) by mrdoob and its contributors.
+- Data from [browser-specs](https://github.com/w3c/browser-specs),
+  [webref](https://github.com/w3c/webref),
+  [browser-compat-data](https://github.com/mdn/browser-compat-data),
+  [MDN](https://github.com/mdn/content), [Can I Use](https://caniuse.com/),
+  [web-platform-tests](https://wpt.fyi/), and
+  [web-features](https://github.com/web-platform-dx/web-features), as compiled
+  by [browser-specs.github.io](https://browser-specs.github.io/).
+
 ## Development
 
 The project is based on

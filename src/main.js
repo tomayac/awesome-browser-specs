@@ -466,6 +466,7 @@ const logoName = dom.logo.querySelector('.name');
     }
     const letter = document.createElement('span');
     letter.className = 'letter';
+    letter.setAttribute('aria-hidden', 'true');
     letter.textContent = char;
     logoName.append(letter);
     logoLetters.push(letter);
