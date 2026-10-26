@@ -6,8 +6,8 @@ SPDX-License-Identifier: Apache-2.0
 # Awesome Browser Specs
 
 A demoscene production about every spec the web runs on. It visualizes the data
-behind [browser-specs.github.io](https://browser-specs.github.io/) in eight
-parts, set to a chillstep soundtrack and robot voices that are all synthesized
+behind [browser-specs.github.io](https://browser-specs.github.io/) in nine
+chapters, set to a dubstep soundtrack and robot voices that are all synthesized
 live in the browser.
 
 ## Chapters
@@ -45,7 +45,7 @@ The demo fetches `https://browser-specs.github.io/data/specs.json` on every
 load. The site serves it with `Access-Control-Allow-Origin: *`, so any origin
 can read it with a plain `fetch()`, with no proxy or build step. When the live
 fetch fails, the demo falls back to the snapshot in
-[`data/specs.json`](data/specs.json).
+[`public/data/specs.json`](public/data/specs.json).
 
 ## Sound
 
@@ -59,8 +59,9 @@ and a soft clipper and a compressor squeeze it.
 The visuals read the same arrangement as the sequencer, so every kick, snare,
 crash, and wobble lines up exactly. The wobble's filter sweep is computed from
 the phrase being played, which lets the tunnel breathe, the skyline ripple, and
-the image smear and glitch in step with what you hear. A spectrum analyzer runs
-along the bottom of every part.
+the image smear and glitch in step with what you hear. An equalizer with falling
+peak caps runs along the bottom, and in the sparse chapters a MilkDrop-style
+feedback of the waveform takes its place.
 
 The voices use the Web Speech API. They read the numbers and the spec names as
 each part presents them, and pronounce the jargon the way people say it (W3C is
