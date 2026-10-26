@@ -173,12 +173,14 @@ const bassOf = (fft) => {
 
 // The chapters with little on screen, where MilkDrop gets room to swirl
 const CALM = ['solo', 'time'];
+// The one chapter with the equalizer
+const EQUALIZED = ['footprint'];
 
-// 0 shows the equalizer, 1 the MilkDrop-style feedback, crossfading over the
-// first and last bar of a calm chapter
-function visualizerMix(bar) {
+// How strongly a visualizer shows in the chapters listed for it, crossfading
+// over their first and last bar
+function visualizerMix(bar, keys) {
   const part = PARTS[partIndexAt(bar)];
-  if (!CALM.includes(part.key)) {
+  if (!keys.includes(part.key)) {
     return 0;
   }
   const into = bar - part.startBar;
@@ -227,9 +229,10 @@ function frame() {
   part.update(state);
   shake(part.camera, state, motion);
   overlay.update(part.cues, lt);
-  // MilkDrop-style feedback takes over from the equalizer in calm chapters
-  const milkdrop = visualizerMix(bar);
-  overlay.spectrum(state.fft, state.kick, 1 - milkdrop);
+  // The equalizer plays in one chapter and MilkDrop-style feedback in the calm
+  // ones
+  const milkdrop = visualizerMix(bar, CALM);
+  overlay.spectrum(state.fft, state.kick, visualizerMix(bar, EQUALIZED));
   visualizer.update(engine.renderer, {
     time,
     kick: state.kick,

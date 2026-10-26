@@ -60,8 +60,8 @@ The visuals read the same arrangement as the sequencer, so every kick, snare,
 crash, and wobble lines up exactly. The wobble's filter sweep is computed from
 the phrase being played, which lets the tunnel breathe, the skyline ripple, and
 the image smear and glitch in step with what you hear. An equalizer with falling
-peak caps runs along the bottom, and in the sparse chapters a MilkDrop-style
-feedback of the waveform takes its place.
+peak caps runs along the bottom of the most referenced specs, and two sparse
+chapters get a MilkDrop-style feedback of the waveform.
 
 The voices use the Web Speech API. They read the numbers and the spec names as
 each part presents them, and pronounce the jargon the way people say it (W3C is
