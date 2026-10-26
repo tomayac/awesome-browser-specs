@@ -4,6 +4,7 @@
 import { deriveStats, loadSpecs } from './data.js';
 import { createEngine } from './engine.js';
 import { Overlay } from './overlay.js';
+import { Visualizer } from './visualizer.js';
 import {
   BAR,
   Music,
@@ -21,6 +22,7 @@ import { createCategories } from './parts/categories.js';
 import { createTests } from './parts/tests.js';
 import { createSolo } from './parts/solo.js';
 import { createFootprint } from './parts/footprint.js';
+import { createDocs } from './parts/docs.js';
 import { createTime } from './parts/time.js';
 import { createGreets } from './parts/greets.js';
 
@@ -31,6 +33,7 @@ const CREATORS = {
   tests: createTests,
   solo: createSolo,
   footprint: createFootprint,
+  docs: createDocs,
   time: createTime,
   greets: createGreets,
 };
@@ -39,8 +42,12 @@ const dom = {
   stage: document.querySelector('#stage'),
   start: document.querySelector('#start'),
   osd: document.querySelector('#osd'),
+  logo: document.querySelector('#logo'),
   play: document.querySelector('#play'),
   fullscreen: document.querySelector('#fullscreen'),
+  chapters: document.querySelector('#chapters'),
+  chapterList: document.querySelector('#chapter-list'),
+  chaptersButton: document.querySelector('#chapters-button'),
   status: document.querySelector('#status'),
   hud: document.querySelector('#hud'),
   part: document.querySelector('#hud-part'),
@@ -67,6 +74,8 @@ const stats = deriveStats(data);
 const engine = createEngine(dom.stage);
 const overlay = new Overlay();
 engine.addOverlay(overlay.scene, overlay.camera);
+const visualizer = new Visualizer();
+overlay.scene.add(visualizer.display);
 const parts = PARTS.map((part) => CREATORS[part.key]({ stats }));
 
 // Every voice cue on one timeline, in song seconds
@@ -84,6 +93,7 @@ function resize() {
   viewport.pixelRatio = Math.min(devicePixelRatio, 2);
   engine.resize(innerWidth, innerHeight);
   overlay.resize(innerWidth, innerHeight);
+  visualizer.resize(innerWidth, innerHeight);
   for (const { camera } of parts) {
     if (camera.isPerspectiveCamera) {
       camera.aspect = innerWidth / innerHeight;
@@ -161,6 +171,15 @@ const bassOf = (fft) => {
   return Math.min(1, Math.max(0, (sum / 6 / 255 - 0.35) / 0.6));
 };
 
+// 0 shows the equalizer, 1 the MilkDrop-style feedback
+function visualizerMix(bar) {
+  if (bar < 1) {
+    return 0;
+  }
+  const at = bar % 16;
+  return at < 1 ? 1 - at : Math.min(1, Math.max(0, at - 8));
+}
+
 // Shakes and rolls a perspective camera on the hits. Every part sets its camera
 // from scratch each frame, so the offset never accumulates.
 function shake(camera, { kick, snare, wobble }, amount) {
@@ -203,7 +222,18 @@ function frame() {
   part.update(state);
   shake(part.camera, state, motion);
   overlay.update(part.cues, lt);
-  overlay.spectrum(state.fft, state.kick);
+  // Every eight bars the visualizer trades the equalizer for MilkDrop-style
+  // feedback and back, crossfading over a bar
+  const milkdrop = visualizerMix(bar);
+  overlay.spectrum(state.fft, state.kick, 1 - milkdrop);
+  visualizer.update(engine.renderer, {
+    time,
+    kick: state.kick,
+    bass: state.bass,
+    wobble: state.wobble.level,
+    wave: music?.readWave(),
+    amount: milkdrop,
+  });
 
   const fx = {
     bloom: 1,
@@ -238,6 +268,8 @@ function frame() {
     speakDue(time);
   }
   dom.part.textContent = `${String(index + 1).padStart(2, '0')} / ${PARTS[index].name}`;
+  typeOnTheBeat(state, index, motion);
+  markChapter(music ? index : -1);
   dom.clock.textContent = `${formatTime(time)} / ${formatTime(SONG_END)}`;
   dom.progress.style.width = `${(time / SONG_END) * 100}%`;
 }
@@ -274,7 +306,7 @@ const syncFullscreen = () => {
 document.addEventListener('fullscreenchange', syncFullscreen);
 document.addEventListener('webkitfullscreenchange', syncFullscreen);
 
-async function start({ fullscreen = false } = {}) {
+async function start({ fullscreen = false, at = 0 } = {}) {
   if (music) {
     return;
   }
@@ -282,9 +314,10 @@ async function start({ fullscreen = false } = {}) {
     toggleFullscreen();
   }
   music = new Music();
-  await music.play(0);
-  spokenUntil = 0;
-  osd('▶ PLAY', 3000);
+  await music.play(at);
+  spokenUntil = at;
+  lastSeek.time = at;
+  lastSeek.at = performance.now();
   dom.start.hidden = true;
   document.body.classList.add('playing');
 }
@@ -305,12 +338,31 @@ function togglePause() {
 }
 
 // Every way to start goes full screen, where the browser allows it
-dom.start.addEventListener('click', () => start({ fullscreen: true }));
+dom.start.addEventListener('click', (event) => {
+  if (!event.target.closest('a')) {
+    start({ fullscreen: true });
+  }
+});
 dom.fullscreen.addEventListener('click', toggleFullscreen);
 dom.stage.addEventListener('dblclick', toggleFullscreen);
 
 addEventListener('keydown', (event) => {
   if (event.metaKey || event.ctrlKey || event.altKey) {
+    return;
+  }
+  // A focused button or link handles its own Space and Enter
+  if (
+    [' ', 'Enter'].includes(event.key) &&
+    event.target.closest?.('#chapters, a, #hud button')
+  ) {
+    return;
+  }
+  if (event.key === 'c' || event.key === 'C') {
+    toggleChapters();
+    return;
+  }
+  if (event.key === 'Escape' && !dom.chapters.hidden) {
+    toggleChapters(false);
     return;
   }
   if (!music) {
@@ -361,7 +413,7 @@ addEventListener('keydown', (event) => {
       toggleFullscreen();
       break;
     default:
-      if (/^[1-8]$/.test(event.key)) {
+      if (/^[1-9]$/.test(event.key)) {
         seek(PARTS[Number(event.key) - 1].startBar * BAR);
       }
   }
@@ -371,6 +423,164 @@ dom.scrubber.addEventListener('click', (event) => {
   const box = dom.scrubber.getBoundingClientRect();
   seek(((event.clientX - box.left) / box.width) * SONG_END);
 });
+
+// The type moves with the music. Every Bitcount element shares axes set here:
+// the dots swell on the kick, change shape on the snare, smear their ink
+// layers with the wobble, and gain weight with the bass. The closing logo's
+// letters rumble with the level of the music.
+function typeOnTheBeat({ lb, kick, snare, wobble, bass, fft }, index, motion) {
+  const root = document.documentElement.style;
+  const swing = (wobble.level - 0.5) * 2 * (wobble.level ? 1 : 0);
+  root.setProperty('--elxp', (kick * 100 * motion).toFixed(1));
+  root.setProperty('--elsh', (snare * 100 * motion).toFixed(1));
+  root.setProperty('--szp1', (35 + bass * 65 * motion).toFixed(1));
+  root.setProperty('--xpn1', (swing * 60 * motion).toFixed(1));
+  root.setProperty('--ypn1', (-wobble.level * 50 * motion).toFixed(1));
+  root.setProperty('--wght', (400 + bass * 500 * motion).toFixed(0));
+
+  const logo = PARTS[index].key === 'greets' && lb >= 12.2;
+  dom.logo.classList.toggle('on', logo);
+  if (logo) {
+    rumble(fft, motion);
+  }
+}
+
+// The closing title, one element per letter
+const logoLetters = [];
+const logoName = dom.logo.querySelector('.name');
+['Awesome', 'Browser Specs'].forEach((line, i) => {
+  if (i) {
+    logoName.append(document.createElement('br'));
+  }
+  for (const char of line) {
+    if (char === ' ') {
+      logoName.append(' ');
+      continue;
+    }
+    const letter = document.createElement('span');
+    letter.className = 'letter';
+    letter.textContent = char;
+    logoName.append(letter);
+    logoLetters.push(letter);
+  }
+});
+
+// Sizes and offsets each letter's gradient to its place in the whole title
+function sliceGradient() {
+  const box = logoName.getBoundingClientRect();
+  for (const letter of logoLetters) {
+    letter.style.transform = '';
+    const rect = letter.getBoundingClientRect();
+    letter.style.backgroundSize = `${box.width}px ${box.height}px`;
+    letter.style.backgroundPosition = `${box.left - rect.left}px ${
+      box.top - rect.top
+    }px`;
+  }
+}
+sliceGradient();
+addEventListener('resize', sliceGradient);
+document.fonts.ready.then(sliceGradient);
+
+// Each letter jitters by a few pixels with the music's overall level
+function rumble(fft, motion) {
+  let level = 0;
+  if (fft) {
+    for (let i = 1; i < 40; i++) {
+      level += fft[i];
+    }
+    level /= 39 * 255;
+  }
+  const amount = (0.4 + level * 7) * motion;
+  for (const letter of logoLetters) {
+    const x = (Math.random() - 0.5) * amount;
+    const y = (Math.random() - 0.5) * amount;
+    const turn = (Math.random() - 0.5) * amount * 0.5;
+    letter.style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(
+      2,
+    )}px) rotate(${turn.toFixed(2)}deg)`;
+  }
+}
+
+// The chapter navigator lists every part with its start time. Picking one
+// jumps there, or starts the demo there from the start screen.
+const chapterButtons = PARTS.map((part, i) => {
+  const item = document.createElement('li');
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.tabIndex = i === 0 ? 0 : -1;
+  const number = document.createElement('span');
+  number.className = 'number';
+  number.textContent = String(i + 1).padStart(2, '0');
+  const name = document.createElement('span');
+  name.className = 'name';
+  name.textContent = part.name;
+  const at = document.createElement('span');
+  at.className = 'at';
+  at.textContent = formatTime(part.startBar * BAR);
+  button.append(number, name, at);
+  button.addEventListener('click', () => {
+    const time = part.startBar * BAR;
+    toggleChapters(false);
+    if (music) {
+      seek(time);
+    } else {
+      start({ fullscreen: true, at: time });
+    }
+  });
+  item.append(button);
+  dom.chapterList.append(item);
+  return button;
+});
+
+let marked = null;
+function markChapter(index) {
+  if (index === marked) {
+    return;
+  }
+  chapterButtons[marked]?.removeAttribute('aria-current');
+  chapterButtons[index]?.setAttribute('aria-current', 'step');
+  marked = index;
+}
+
+// Roving focus: one chapter is in the tab order, and the arrow keys, Home,
+// and End move between them
+function focusChapter(index) {
+  const count = chapterButtons.length;
+  const next = (index + count) % count;
+  chapterButtons.forEach((button, i) => {
+    button.tabIndex = i === next ? 0 : -1;
+  });
+  chapterButtons[next].focus();
+}
+
+dom.chapterList.addEventListener('keydown', (event) => {
+  const index = chapterButtons.indexOf(document.activeElement);
+  const moves = {
+    ArrowDown: index + 1,
+    ArrowRight: index + 1,
+    ArrowUp: index - 1,
+    ArrowLeft: index - 1,
+    Home: 0,
+    End: chapterButtons.length - 1,
+  };
+  if (index === -1 || !(event.key in moves)) {
+    return;
+  }
+  // Keep the arrows from also seeking through the demo
+  event.preventDefault();
+  event.stopPropagation();
+  focusChapter(moves[event.key]);
+});
+
+function toggleChapters(open = dom.chapters.hidden) {
+  dom.chapters.hidden = !open;
+  document.body.classList.toggle('chapters-open', open);
+  if (open) {
+    focusChapter(Math.max(0, marked ?? 0));
+  }
+}
+
+dom.chaptersButton.addEventListener('click', () => toggleChapters());
 
 // The controls show while the pointer moves and hide again after a moment
 let idle = 0;

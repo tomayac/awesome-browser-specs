@@ -58,27 +58,57 @@ export class Overlay {
     }
     this.bands.visible = false;
     this.scene.add(this.bands);
+
+    // Winamp-style peak caps that hang above each bar, then fall
+    this.caps = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({
+        color: '#ffffff',
+        transparent: true,
+        depthTest: false,
+        toneMapped: false,
+      }),
+      BANDS,
+    );
+    this.caps.visible = false;
+    this.scene.add(this.caps);
+    this.peaks = new Float32Array(BANDS);
+    this.lastSpectrum = performance.now();
     this.matrix = new THREE.Matrix4();
   }
 
-  // Bins spread on a curve, so the bass gets more bars than the hiss
-  spectrum(fft, kick) {
-    this.bands.visible = Boolean(fft);
-    if (!fft) {
+  // Bins spread on a curve, so the bass gets more bars than the hiss. At full
+  // `amount` the bars reach a fifth of the screen.
+  spectrum(fft, kick, amount = 1) {
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.lastSpectrum) / 1000);
+    this.lastSpectrum = now;
+    const visible = Boolean(fft) && amount > 0.01;
+    this.bands.visible = visible;
+    this.caps.visible = visible;
+    if (!visible) {
       return;
     }
+    this.bands.material.opacity = 0.6 * amount;
+    this.caps.material.opacity = 0.9 * amount;
     const width = (this.aspect * 2) / BANDS;
     for (let i = 0; i < BANDS; i++) {
       const bin = Math.floor(1 + (i / BANDS) ** 1.7 * 90);
       const height = Math.max(
         0.002,
-        (fft[bin] / 255) ** 1.6 * 0.12 * (1 + kick * 0.4),
+        (fft[bin] / 255) ** 1.4 * 0.4 * amount * (1 + kick * 0.3),
       );
+      const x = -this.aspect + width * (i + 0.5);
       this.matrix.makeScale(width * 0.7, height, 1);
-      this.matrix.setPosition(-this.aspect + width * (i + 0.5), -1, 0);
+      this.matrix.setPosition(x, -1, 0);
       this.bands.setMatrixAt(i, this.matrix);
+      this.peaks[i] = Math.max(height, this.peaks[i] - dt * 0.3);
+      this.matrix.makeScale(width * 0.7, 0.012, 1);
+      this.matrix.setPosition(x, -1 + this.peaks[i] + 0.012, 0);
+      this.caps.setMatrixAt(i, this.matrix);
     }
     this.bands.instanceMatrix.needsUpdate = true;
+    this.caps.instanceMatrix.needsUpdate = true;
   }
 
   resize(width, height) {

@@ -178,16 +178,6 @@ export function createGreets({ stats }) {
         mono('MUSIC AND VOICES SYNTHESIZED LIVE IN YOUR BROWSER', HEAT[2]),
       ],
     },
-    {
-      from: 12.2,
-      to: 16,
-      at: 'center',
-      lines: [
-        { text: 'AWESOME', size: 0.14 },
-        { text: 'BROWSER SPECS', size: 0.14 },
-        mono('PRESS R TO REPLAY'),
-      ],
-    },
   ];
   const voice = [
     { at: 0.2, text: 'Greetings to' },

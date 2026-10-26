@@ -10,18 +10,19 @@ behind [browser-specs.github.io](https://browser-specs.github.io/) in eight
 parts, set to a chillstep soundtrack and robot voices that are all synthesized
 live in the browser.
 
-## Parts
+## Chapters
 
-| Key | Part            | What it shows                                                                |
-| --- | --------------- | ---------------------------------------------------------------------------- |
-| 1   | 641             | One particle per spec, gathering into the total                              |
-| 2   | Engine triangle | Blink, Gecko, and WebKit, with every spec placed by the engines that ship it |
-| 3   | Category tunnel | One ring per category, split by how many engines ship its specs              |
-| 4   | Interop skyline | WPT pass rates per spec: interop first, then Chrome, Firefox, and Safari     |
-| 5   | Going solo      | The specs that ship in only one engine                                       |
-| 6   | Monoliths       | The most referenced specs, by platform footprint                             |
-| 7   | Time warp       | Every spec ordered by its last update                                        |
-| 8   | Greetings       | The standards organizations and working groups, slammed in on the beat       |
+| Key | Chapter                       | What it shows                                                                |
+| --- | ----------------------------- | ---------------------------------------------------------------------------- |
+| 1   | The specs behind the web      | One particle per spec, gathering into the total                              |
+| 2   | Which engines ship each spec  | Blink, Gecko, and WebKit, with every spec placed by the engines that ship it |
+| 3   | Specs by category             | One ring per category, split by how many engines ship its specs              |
+| 4   | Interop in web platform tests | WPT pass rates per spec: interop first, then Chrome, Firefox, and Safari     |
+| 5   | Specs only one engine ships   | The specs that ship in only one engine                                       |
+| 6   | The most referenced specs     | The specs that the most other specs point at                                 |
+| 7   | The best-documented specs     | The specs with the most MDN articles, as rotating shapes wrapped in names    |
+| 8   | Specs by last update          | Every spec ordered by its last update                                        |
+| 9   | The groups that write them    | The standards organizations and working groups, slammed in on the beat       |
 
 Every number comes from the data at load time, so the demo changes as the specs
 do.
@@ -31,11 +32,12 @@ do.
 - <kbd>Space</kbd>: play or pause
 - <kbd>F</kbd>, a double-click, or the **Full screen** button: toggle full
   screen
-- <kbd>1</kbd>–<kbd>8</kbd>: jump to a part
+- <kbd>1</kbd>–<kbd>9</kbd>: jump to a chapter
 - <kbd>←</kbd> <kbd>→</kbd>: jump four bars
 - <kbd>Page Up</kbd> <kbd>Page Down</kbd>: previous or next part
 - <kbd>R</kbd>: replay from the start
 - <kbd>M</kbd>: mute
+- <kbd>C</kbd> or the **Chapters** button: open the chapter navigator
 
 ## Data
 

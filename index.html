@@ -17,7 +17,7 @@ SPDX-License-Identifier: Apache-2.0
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&family=IBM+Plex+Mono:wght@500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&family=Bitcount+Single+Ink:CRSV,ELSH,ELXP,SZP1,SZP2,XPN1,XPN2,YPN1,YPN2,slnt,wght@0..1,0..100,0..100,0..100,0..100,-100..100,-100..100,-100..100,-100..100,-8..0,100..900&family=IBM+Plex+Mono:wght@500;700&display=swap"
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/src/style.css" />
@@ -38,18 +38,44 @@ SPDX-License-Identifier: Apache-2.0
       </p>
       <ul class="keys">
         <li><kbd>Space</kbd> pause</li>
-        <li><kbd>1</kbd>–<kbd>8</kbd> jump to a part</li>
+        <li><kbd>1</kbd>–<kbd>9</kbd> jump to a chapter</li>
         <li><kbd>M</kbd> mute</li>
         <li><kbd>F</kbd> full screen</li>
+        <li><kbd>C</kbd> chapters</li>
       </ul>
+      <p class="credit">
+        Made by
+        <a href="https://github.com/tomayac" target="_blank" rel="noopener"
+          >tomayac</a
+        >
+        ·
+        <a
+          href="https://github.com/tomayac/awesome-browser-specs"
+          target="_blank"
+          rel="noopener"
+          >Source</a
+        >
+      </p>
     </div>
 
+    <nav id="chapters" aria-labelledby="chapters-title" hidden>
+      <h2 id="chapters-title">Chapters</h2>
+      <ol id="chapter-list"></ol>
+      <p class="hint"><kbd>C</kbd> or <kbd>Esc</kbd> closes</p>
+    </nav>
+
     <div id="osd" aria-hidden="true"></div>
+
+    <div id="logo" aria-hidden="true">
+      <span class="name"></span>
+      <span class="replay">Press R to replay</span>
+    </div>
 
     <div id="hud">
       <span id="hud-part" aria-hidden="true"></span>
       <span class="hud-end">
         <span id="hud-clock" aria-hidden="true"></span>
+        <button id="chapters-button" type="button">Chapters</button>
         <button id="fullscreen" type="button">Full screen</button>
       </span>
     </div>

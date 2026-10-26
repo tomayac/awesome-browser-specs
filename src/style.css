@@ -4,6 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 */
 
 :root {
+  --bitcount: "Bitcount Single Ink", var(--mono);
   --bg: #05040d;
   --fg: #f4f2ff;
   --muted: #9aa0d0;
@@ -147,6 +148,77 @@ body.playing.active {
   color: transparent;
 }
 
+/* Every Bitcount element shares axes that main.js sets from the music each
+   frame: the dots swell on the kick, change shape on the snare, smear their
+   ink layers with the wobble, and gain weight with the bass */
+#osd,
+#chapters h2,
+#hud-part,
+#hud-clock {
+  font-family: var(--bitcount);
+  font-variation-settings:
+    "ELSH" var(--elsh, 0),
+    "ELXP" var(--elxp, 0),
+    "SZP1" var(--szp1, 40),
+    "XPN1" var(--xpn1, 0),
+    "YPN1" var(--ypn1, 0),
+    "wght" var(--wght, 500);
+}
+
+/* The closing logo mirrors the start screen: the same gradient title in the
+   same place, and the replay hint styled like the play button */
+#logo {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2.2rem;
+  padding: 0 max(1rem, 8vw);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s;
+}
+
+#logo.on {
+  opacity: 1;
+}
+
+#logo .name {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: clamp(3.5rem, 13vw, 11rem);
+  line-height: 0.85;
+  text-transform: uppercase;
+}
+
+/* Every letter carries a slice of one gradient, so the title still reads as
+   one sweep while its letters rumble independently */
+#logo .name .letter {
+  display: inline-block;
+  background: linear-gradient(
+    100deg,
+    var(--blink),
+    var(--webkit) 45%,
+    var(--gecko)
+  );
+  background-clip: text;
+  color: transparent;
+  will-change: transform;
+}
+
+#logo .replay {
+  padding: 0.6em 1em;
+  border: 2px solid var(--fg);
+  color: var(--fg);
+  font-size: clamp(0.75rem, 1.6vw, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 #start .sub,
 #start .status,
 #start .go,
@@ -190,7 +262,6 @@ body.playing.active {
 }
 
 #start .note {
-  max-width: 60ch;
   color: var(--muted);
   font-size: clamp(0.65rem, 1.2vw, 0.8rem);
   line-height: 1.6;
@@ -213,24 +284,134 @@ body.playing.active {
 /* The VCR's own on-screen display */
 #osd {
   position: fixed;
-  top: max(1.5rem, 7vh);
-  left: max(1.5rem, 7vw);
+  top: 50%;
+  left: 50%;
   z-index: 2;
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: clamp(1.1rem, 3.2vw, 2.4rem);
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-family: var(--bitcount);
+  font-size: clamp(1.6rem, 4.5vw, 3.4rem);
   letter-spacing: 0.08em;
-  color: #fff;
-  text-shadow:
-    2px 0 rgb(255 30 90 / 0.65),
-    -2px 0 rgb(0 210 255 / 0.65),
-    0 0 8px rgb(255 255 255 / 0.4);
+  /* Bitcount's letters bring their own ink. The ▶ and ❚❚ symbols fall back
+     to another font, so they take the ink's yellow from here. */
+  color: #ffc000;
+  text-shadow: 0 0 10px rgb(255 192 0 / 0.35);
   pointer-events: none;
   opacity: 0;
 }
 
 #osd.on {
   opacity: 1;
+}
+
+/* The chapter navigator, a panel on the right */
+#chapters {
+  position: fixed;
+  top: 50%;
+  right: max(1rem, 5vw);
+  z-index: 4;
+  transform: translateY(-50%);
+  width: min(26rem, calc(100vw - 2rem));
+  padding: 1.2rem;
+  border: 1px solid var(--muted);
+  background: rgb(5 4 13 / 0.88);
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#chapters h2 {
+  margin: 0 0 0.8rem;
+  font-family: var(--bitcount);
+  font-size: 2.2rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+#chapters ol {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#chapters button {
+  display: grid;
+  grid-template-columns: 2.2em 1fr auto;
+  gap: 0.6em;
+  width: 100%;
+  padding: 0.5em 0.6em;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+#chapters .number,
+#chapters .at {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+#chapters button:hover,
+#chapters button:focus-visible {
+  border-color: var(--hot);
+  color: var(--hot);
+  outline: none;
+}
+
+#chapters button[aria-current] {
+  background: rgb(255 255 255 / 0.08);
+}
+
+#chapters button[aria-current] .number {
+  color: var(--hot);
+}
+
+#chapters .hint {
+  margin: 0.8rem 0 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+#chapters kbd {
+  padding: 0.05em 0.35em;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  color: var(--fg);
+  font: inherit;
+}
+
+body.chapters-open {
+  cursor: auto;
+}
+
+#start .credit {
+  color: var(--muted);
+  font-size: clamp(0.65rem, 1.2vw, 0.8rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#start .credit a {
+  color: var(--fg);
+  text-underline-offset: 0.2em;
+}
+
+#start .credit a:hover,
+#start .credit a:focus-visible {
+  color: var(--hot);
+  outline: none;
+}
+
+#hud-part,
+#hud-clock {
+  font-size: 1rem;
 }
 
 #hud {
@@ -280,7 +461,8 @@ body.playing.active {
   gap: 1rem;
 }
 
-#fullscreen {
+#fullscreen,
+#chapters-button {
   padding: 0.4em 0.8em;
   border: 1px solid var(--muted);
   background: rgb(5 4 13 / 0.6);
@@ -293,13 +475,16 @@ body.playing.active {
 }
 
 #fullscreen:hover,
-#fullscreen:focus-visible {
+#fullscreen:focus-visible,
+#chapters-button:hover,
+#chapters-button:focus-visible {
   border-color: var(--hot);
   color: var(--hot);
   outline: none;
 }
 
-body:not(.active) #fullscreen {
+body:not(.active) #fullscreen,
+body:not(.active) #chapters-button {
   pointer-events: none;
 }
 

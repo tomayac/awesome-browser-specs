@@ -15,14 +15,15 @@ const BEAT_HZ = BPM / 60;
 
 let startBar = 0;
 export const PARTS = [
-  ['intro', 'Six hundred forty-one', 8],
-  ['engines', 'Engine triangle', 16],
-  ['categories', 'Category tunnel', 16],
-  ['tests', 'Interop skyline', 16],
-  ['solo', 'Going solo', 8],
-  ['footprint', 'Monoliths', 16],
-  ['time', 'Time warp', 16],
-  ['greets', 'Greetings', 16],
+  ['intro', 'The specs behind the web', 8],
+  ['engines', 'Which engines ship each spec', 16],
+  ['categories', 'Specs by category', 16],
+  ['tests', 'Interop in web platform tests', 16],
+  ['solo', 'Specs only one engine ships', 8],
+  ['footprint', 'The most referenced specs', 16],
+  ['docs', 'The best-documented specs', 16],
+  ['time', 'Specs by last update', 16],
+  ['greets', 'The groups that write them', 16],
 ].map(([key, name, bars]) => {
   const part = { key, name, bars, startBar };
   startBar += bars;
@@ -133,7 +134,7 @@ const BUILD = [[0, 16, 0.5, 0]];
 
 const PLUCK_ORDER = [0, 2, 1, 3, 2, 4, 1, 3];
 
-const DROPS = ['categories', 'tests', 'footprint', 'time', 'greets'];
+const DROPS = ['categories', 'tests', 'footprint', 'docs', 'time', 'greets'];
 
 function where(bar) {
   const part = PARTS[partIndexAt(bar)];
@@ -215,7 +216,7 @@ export function hit(instrument, bar, step) {
       if (local === 0 && key !== 'intro' && key !== 'solo') {
         return 1;
       }
-      if (key === 'footprint' && local % 4 === 0) {
+      if ((key === 'footprint' || key === 'docs') && local % 4 === 0) {
         return 0.7;
       }
       return bar === OUTRO_BAR ? 0.8 : 0;
@@ -333,6 +334,7 @@ export class Music {
     this.analyser.fftSize = 256;
     this.analyser.smoothingTimeConstant = 0.7;
     this.fft = new Uint8Array(this.analyser.frequencyBinCount);
+    this.wave = new Uint8Array(this.analyser.fftSize);
     // A soft clipper squeezes the mix before the compressor for density
     const clipper = ctx.createWaveShaper();
     clipper.curve = this.driveCurve(1.6);
@@ -546,7 +548,7 @@ export class Music {
   // Makes room for a voice
   set speaking(value) {
     this.master.gain.setTargetAtTime(
-      value ? 0.5 : 0.8,
+      value ? 0.25 : 0.8,
       this.ctx.currentTime,
       0.08,
     );
@@ -555,6 +557,11 @@ export class Music {
   readFft() {
     this.analyser.getByteFrequencyData(this.fft);
     return this.fft;
+  }
+
+  readWave() {
+    this.analyser.getByteTimeDomainData(this.wave);
+    return this.wave;
   }
 
   tick() {
@@ -805,7 +812,7 @@ export class Music {
     osc.stop(t + duration + 0.05);
   }
 
-  // Detuned saws through two drive stages into a resonant lowpass and a
+  // Detuned squares through two drive stages into a resonant lowpass and a
   // vowel-like bandpass, plus bit-crushed grit and a screech an octave up, all
   // swept by an LFO locked to the beat
   wobble(t, midi, duration, perBeat) {
@@ -814,10 +821,10 @@ export class Music {
     const mix = ctx.createGain();
     mix.gain.value = 0.45;
     for (const [type, detune, ratio] of [
-      ['sawtooth', -16, 1],
-      ['sawtooth', 16, 1],
-      ['square', 0, 0.5],
-      ['sawtooth', 7, 2],
+      ['square', -12, 1],
+      ['square', 12, 1],
+      ['sine', 0, 0.5],
+      ['triangle', 7, 2],
     ]) {
       const osc = ctx.createOscillator();
       osc.type = type;
@@ -882,15 +889,19 @@ export class Music {
     filter.frequency.linearRampToValueAtTime(900, t + duration + tail);
     const amp = ctx.createGain();
     amp.gain.setValueAtTime(0, t);
-    amp.gain.linearRampToValueAtTime(0.045, t + 0.6);
-    amp.gain.setValueAtTime(0.045, t + duration);
+    amp.gain.linearRampToValueAtTime(0.065, t + 0.6);
+    amp.gain.setValueAtTime(0.065, t + duration);
     amp.gain.linearRampToValueAtTime(0, t + duration + tail);
     filter.connect(amp).connect(this.session.duck);
     this.send(amp, this.session.reverb, 0.8);
     for (const midi of notes) {
-      for (const detune of [-11, 0, 11]) {
+      for (const [type, detune] of [
+        ['triangle', -9],
+        ['sine', 0],
+        ['triangle', 9],
+      ]) {
         const osc = ctx.createOscillator();
-        osc.type = 'sawtooth';
+        osc.type = type;
         osc.frequency.value = mtof(midi);
         osc.detune.value = detune;
         osc.connect(filter);
@@ -946,7 +957,7 @@ export class Music {
     depth.gain.linearRampToValueAtTime(14, t + duration);
     vibrato.connect(depth);
     for (const [type, detune] of [
-      ['sawtooth', -6],
+      ['square', -6],
       ['triangle', 6],
     ]) {
       const osc = ctx.createOscillator();

@@ -55,26 +55,26 @@ const FxShader = {
       vec2 screen = tube(vUv);
       vec2 uv = (screen - 0.5) * (1.0 - uPunch * 0.05) + 0.5;
 
-      // A hum bar rolls up the picture, and every line wobbles a little
-      // sideways, the most where the bar passes
+      // A hum bar rolls up the picture
       float tick = floor(uTime * 60.0);
       float roll = fract(-uTime * 0.07);
       float hum = 1.0 - smoothstep(0.0, 0.07, abs(screen.y - roll));
-      float line = floor(screen.y * uResolution.y / 2.0);
-      uv.x += (hash(vec2(line, tick)) - 0.5) * (0.0015 + hum * 0.007) * uMotion;
 
-      // VHS faults come and go in half-second windows, decided by the clock
-      float window = floor(uTime * 2.0);
-      float flicker = step(0.88, hash(vec2(window, 11.0)));
-      float tracking = step(0.9, hash(vec2(window, 23.0)));
-      // The head-switching noise that tears the bottom lines of every tape
-      float head = 1.0 - smoothstep(0.0, 0.045, screen.y);
-      uv.x += head * (hash(vec2(line, tick)) - 0.3) * 0.05 * uMotion;
-      // A tracking error: a band of torn lines sweeping down the picture
-      float trackY = fract(hash(vec2(window, 5.0)) - uTime * 0.9);
-      float track = tracking * uMotion *
-        (1.0 - smoothstep(0.0, 0.06, abs(screen.y - trackY)));
-      uv.x += track * (hash(vec2(line, tick + 1.0)) - 0.5) * 0.07;
+      // Occasional flicker, decided per half second by the clock
+      float flicker = step(0.88, hash(vec2(floor(uTime * 2.0), 11.0)));
+
+      // A worn tape: the whole picture always wavers a little, and now and
+      // then, for a second and a half, it sways, bends at the top, slips,
+      // and breathes, easing in and out
+      float spell = floor(uTime / 1.5);
+      float within = fract(uTime / 1.5);
+      float issue = step(0.72, hash(vec2(spell, 31.0)))
+        * pow(sin(within * 3.14159), 2.0) * uMotion;
+      uv.x += 0.0012 * sin(uTime * 1.3) * uMotion;
+      uv.x += issue * 0.012 * sin(uTime * 6.0 + screen.y * 3.0);
+      uv.x += issue * 0.025 * pow(screen.y, 6.0) * sin(uTime * 2.7);
+      uv.y += issue * 0.008 * sin(uTime * 5.3);
+      uv = (uv - 0.5) * (1.0 + issue * 0.012 * sin(uTime * 4.1)) + 0.5;
 
       // Horizontal slices that jump sideways while glitching
       float frame = floor(uTime * 24.0);
@@ -86,7 +86,10 @@ const FxShader = {
       vec2 dir = uv - 0.5;
       float shift = uChroma + uGlitch * 0.012;
       // VHS smears color more than brightness, and the smear wavers
-      vec2 bleed = vec2(0.0009 + 0.0005 * sin(screen.y * 40.0 + uTime * 3.0), 0.0);
+      vec2 bleed = vec2(
+        0.0009 + 0.0005 * sin(screen.y * 40.0 + uTime * 3.0) + issue * 0.004,
+        0.0
+      );
       vec3 color = vec3(
         texture2D(tDiffuse, uv + dir * shift + bleed).r,
         texture2D(tDiffuse, uv).g,
@@ -109,15 +112,9 @@ const FxShader = {
       color *= 1.0 + hum * 0.1 * uMotion;
       color *= 1.0 - 0.04 * uMotion * hash(vec2(tick, 7.0));
 
-      // Tape faults: static and lost color in the tracking band, the torn
-      // strip at the bottom, white dropout streaks, and occasional flicker
-      float grain = hash(vec2(gl_FragCoord.x * 0.37, line + tick));
-      color = mix(color, vec3(dot(color, vec3(0.3, 0.59, 0.11))), track * 0.7);
-      color += track * step(0.6, grain) * 0.5;
-      color += head * step(0.75, grain) * 0.3 * uMotion;
-      float dropout = step(0.996, hash(vec2(line, tick)))
-        * step(0.4, hash(vec2(floor(screen.x * 14.0), tick)));
-      color += dropout * 0.7 * uMotion;
+      // The worn tape also loses color and pumps its brightness
+      color = mix(color, vec3(dot(color, vec3(0.3, 0.59, 0.11))), issue * 0.55);
+      color *= 1.0 - issue * 0.15 * (0.5 + 0.5 * sin(uTime * 13.0));
       color *= 1.0 - flicker * uMotion * (0.2 + 0.4 * hash(vec2(tick, 3.0)));
       color += (hash(vUv * uResolution + fract(uTime) * 100.0) - 0.5) * 0.08;
       color *= mix(1.0, smoothstep(0.95, 0.2, length(screen - 0.5)), 0.7);

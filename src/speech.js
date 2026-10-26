@@ -57,12 +57,19 @@ const ROBOTS = [
   'Grandpa',
 ];
 
+// A cue that comes due while a voice is talking waits for it, unless it would
+// come later than this
+const LATE = 2500;
+// Some engines never report the end of an utterance, so give up after this
+const STUCK = 9000;
+
 export class Speaker {
   constructor({ onSpeaking }) {
     this.onSpeaking = onSpeaking;
     this.enabled = 'speechSynthesis' in window;
     this.voices = [];
-    this.pending = 0;
+    this.current = null;
+    this.waiting = null;
     this.muted = false;
     if (this.enabled) {
       const load = () => {
@@ -99,32 +106,47 @@ export class Speaker {
       utterance.voice?.name.startsWith(robot),
     );
     utterance.pitch = robotic ? 1 : announcer ? 0.2 : 0.4;
-    utterance.rate = announcer ? 0.95 : 1.05;
+    utterance.rate = announcer ? 1.1 : 1.15;
     utterance.volume = 1;
-    utterance.addEventListener('start', () => {
-      this.pending++;
-      this.onSpeaking(true);
-    });
+    // Never cut a voice off mid-sentence: wait for it, keeping only the
+    // newest cue
+    if (this.current) {
+      this.waiting = { utterance, at: performance.now() };
+      return;
+    }
+    this.speak(utterance);
+  }
+
+  speak(utterance) {
+    this.current = utterance;
+    this.onSpeaking(true);
+    let timer = 0;
     const done = () => {
-      this.pending = Math.max(0, this.pending - 1);
-      if (!this.pending) {
+      clearTimeout(timer);
+      if (this.current !== utterance) {
+        return;
+      }
+      this.current = null;
+      const next = this.waiting;
+      this.waiting = null;
+      if (next && performance.now() - next.at < LATE) {
+        this.speak(next.utterance);
+      } else {
         this.onSpeaking(false);
       }
     };
     utterance.addEventListener('end', done);
     utterance.addEventListener('error', done);
-    // A voice that runs long gives way, so announcements stay on the beat
-    if (speechSynthesis.speaking || speechSynthesis.pending) {
-      speechSynthesis.cancel();
-    }
+    timer = setTimeout(done, STUCK);
     speechSynthesis.speak(utterance);
   }
 
   stop() {
+    this.current = null;
+    this.waiting = null;
     if (this.enabled) {
       speechSynthesis.cancel();
     }
-    this.pending = 0;
     this.onSpeaking(false);
   }
 }
