@@ -172,7 +172,7 @@ const bassOf = (fft) => {
 };
 
 // The chapters with little on screen, where MilkDrop gets room to swirl
-const CALM = ['intro', 'solo', 'time'];
+const CALM = ['solo', 'time'];
 
 // 0 shows the equalizer, 1 the MilkDrop-style feedback, crossfading over the
 // first and last bar of a calm chapter
