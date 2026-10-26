@@ -38,8 +38,8 @@ const CREATORS = {
 const dom = {
   stage: document.querySelector('#stage'),
   start: document.querySelector('#start'),
+  osd: document.querySelector('#osd'),
   play: document.querySelector('#play'),
-  playFull: document.querySelector('#play-full'),
   fullscreen: document.querySelector('#fullscreen'),
   status: document.querySelector('#status'),
   hud: document.querySelector('#hud'),
@@ -118,10 +118,24 @@ function speakDue(time) {
   spokenUntil = time;
 }
 
+// Shows a VCR message, for `ms` milliseconds or until the next one
+let osdTimer = 0;
+function osd(text, ms = 1200) {
+  dom.osd.textContent = text;
+  dom.osd.classList.add('on');
+  clearTimeout(osdTimer);
+  if (Number.isFinite(ms)) {
+    osdTimer = setTimeout(() => dom.osd.classList.remove('on'), ms);
+  }
+}
+
 const lastSeek = { time: 0, at: -Infinity };
 function seek(time) {
   if (!music) {
     return;
+  }
+  if (music.playing) {
+    osd(time < music.time ? '◀◀ REW' : '▶▶ FF');
   }
   speaker.stop();
   music.seek(time);
@@ -208,7 +222,7 @@ function frame() {
   // snares, smear on the wobble, and glitches when it wobbles fast
   const { wobble } = state;
   fx.flash += state.crash * 0.08 + (state.drop ? state.snare * 0.12 : 0);
-  fx.chroma += wobble.level * 0.01 + state.bass * 0.004;
+  fx.chroma += wobble.level * 0.006 + state.bass * 0.003;
   fx.glitch += wobble.rate >= 6 ? wobble.level * 0.3 : 0;
   fx.bloom *= 1 + state.bass * 0.4;
   const big = since('crash', time);
@@ -218,7 +232,7 @@ function frame() {
   fx.glitch *= motion;
   fx.invert *= motion;
   punch *= motion;
-  engine.render(part.scene, part.camera, { ...fx, punch, time });
+  engine.render(part.scene, part.camera, { ...fx, punch, time, motion });
 
   if (music?.playing) {
     speakDue(time);
@@ -235,7 +249,6 @@ dom.status.textContent =
     : `Live data unavailable, using a snapshot of ${stats.total} specs`;
 dom.start.classList.add('ready');
 dom.play.disabled = false;
-dom.playFull.disabled = false;
 
 const canFullscreen =
   document.fullscreenEnabled || document.webkitFullscreenEnabled;
@@ -249,7 +262,7 @@ function toggleFullscreen() {
   Promise.resolve(request?.call(root)).catch(() => {});
 }
 if (!canFullscreen) {
-  dom.playFull.hidden = true;
+  dom.play.textContent = 'Play';
   dom.fullscreen.hidden = true;
 }
 const syncFullscreen = () => {
@@ -271,6 +284,7 @@ async function start({ fullscreen = false } = {}) {
   music = new Music();
   await music.play(0);
   spokenUntil = 0;
+  osd('▶ PLAY', 3000);
   dom.start.hidden = true;
   document.body.classList.add('playing');
 }
@@ -282,21 +296,16 @@ function togglePause() {
   if (music.playing) {
     music.pause();
     speaker.stop();
+    osd('❚❚ PAUSE', Infinity);
   } else {
     music.play();
     spokenUntil = music.time;
+    osd('▶ PLAY', 2000);
   }
 }
 
-dom.play.addEventListener('click', (event) => {
-  event.stopPropagation();
-  start();
-});
-dom.playFull.addEventListener('click', (event) => {
-  event.stopPropagation();
-  start({ fullscreen: true });
-});
-dom.start.addEventListener('click', () => start());
+// Every way to start goes full screen, where the browser allows it
+dom.start.addEventListener('click', () => start({ fullscreen: true }));
 dom.fullscreen.addEventListener('click', toggleFullscreen);
 dom.stage.addEventListener('dblclick', toggleFullscreen);
 
@@ -305,10 +314,8 @@ addEventListener('keydown', (event) => {
     return;
   }
   if (!music) {
-    if (event.key === ' ' || event.key === 'Enter') {
+    if ([' ', 'Enter', 'f', 'F'].includes(event.key)) {
       event.preventDefault();
-      start();
-    } else if (event.key === 'f' || event.key === 'F') {
       start({ fullscreen: true });
     }
     return;

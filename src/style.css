@@ -75,15 +75,59 @@ body.playing.active {
   display: none;
 }
 
+/* The start screen sits on the same analog TV as the demo: scanlines, a
+   flickering vignette, and the tube's rounded corners */
+#start::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgb(0 0 0 / 0.28) 0 1px,
+      transparent 1px 3px
+    ),
+    radial-gradient(ellipse at center, transparent 55%, rgb(0 0 0 / 0.75) 100%);
+  border-radius: 3% / 5%;
+  box-shadow:
+    inset 0 0 0 2px #000,
+    inset 0 0 6vmin rgb(0 0 0 / 0.9);
+  animation: flicker 0.12s steps(2, jump-none) infinite;
+}
+
+@keyframes flicker {
+  50% {
+    opacity: 0.88;
+  }
+}
+
 #start > * {
   margin: 0;
 }
 
-#start .actions {
+#start .keys {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.8rem;
-  margin-top: 1rem;
+  gap: 0.6rem 1.4rem;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: clamp(0.65rem, 1.2vw, 0.8rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#start kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  margin-right: 0.3em;
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  color: var(--fg);
+  font: inherit;
+  text-align: center;
 }
 
 #start .title {
@@ -117,6 +161,7 @@ body.playing.active {
 }
 
 #start .go {
+  margin-top: 1rem;
   padding: 0.6em 1em;
   border: 2px solid var(--fg);
   background: transparent;
@@ -159,9 +204,33 @@ body.playing.active {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #start.ready #play {
+  #start.ready #play,
+  #start::after {
     animation: none;
   }
+}
+
+/* The VCR's own on-screen display */
+#osd {
+  position: fixed;
+  top: max(1.5rem, 7vh);
+  left: max(1.5rem, 7vw);
+  z-index: 2;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: clamp(1.1rem, 3.2vw, 2.4rem);
+  letter-spacing: 0.08em;
+  color: #fff;
+  text-shadow:
+    2px 0 rgb(255 30 90 / 0.65),
+    -2px 0 rgb(0 210 255 / 0.65),
+    0 0 8px rgb(255 255 255 / 0.4);
+  pointer-events: none;
+  opacity: 0;
+}
+
+#osd.on {
+  opacity: 1;
 }
 
 #hud {

@@ -263,7 +263,7 @@ export function createEngines({ stats }) {
         const p = arrived[i];
         const corner = corners[engine];
         const color = baseColors[i];
-        const fade = p * p * (0.6 + snare * 0.8 + wobble.level * 0.8);
+        const fade = p * p * (0.6 + snare * 0.8 + wobble.level * 0.3);
         linePositions.set(
           [
             positions.getX(i),

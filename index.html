@@ -30,17 +30,21 @@ SPDX-License-Identifier: Apache-2.0
       <h1 class="title">Awesome<br />Browser Specs</h1>
       <p class="sub">A demo about every spec the web runs on</p>
       <p id="status" class="status" role="status">Loading specs…</p>
-      <div class="actions">
-        <button id="play" class="go" type="button" disabled>Play</button>
-        <button id="play-full" class="go" type="button" disabled>
-          Play full screen
-        </button>
-      </div>
+      <button id="play" class="go" type="button" disabled>
+        Play full screen
+      </button>
       <p class="note">
-        Sound and robot voices on · flashing lights · 1–8 jump to a part · space
-        pauses · M mutes · F or a double-click toggles full screen
+        The demo plays loud music and robot voices, and has flashing lights.
       </p>
+      <ul class="keys">
+        <li><kbd>Space</kbd> pause</li>
+        <li><kbd>1</kbd>–<kbd>8</kbd> jump to a part</li>
+        <li><kbd>M</kbd> mute</li>
+        <li><kbd>F</kbd> full screen</li>
+      </ul>
     </div>
+
+    <div id="osd" aria-hidden="true"></div>
 
     <div id="hud">
       <span id="hud-part" aria-hidden="true"></span>

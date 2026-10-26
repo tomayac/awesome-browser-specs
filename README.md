@@ -21,7 +21,7 @@ live in the browser.
 | 5   | Going solo      | The specs that ship in only one engine                                       |
 | 6   | Monoliths       | The most referenced specs, by platform footprint                             |
 | 7   | Time warp       | Every spec ordered by its last update                                        |
-| 8   | Greetings       | The standards organizations and working groups, in a sine scroller           |
+| 8   | Greetings       | The standards organizations and working groups, slammed in on the beat       |
 
 Every number comes from the data at load time, so the demo changes as the specs
 do.
@@ -47,10 +47,12 @@ fetch fails, the demo falls back to the snapshot in
 
 ## Sound
 
-The soundtrack is generated with the Web Audio API at 150 BPM in C minor: a
-half-time beat with a driven kick, a saturated sub, a growling wobble bass that
-an LFO locked to the beat sweeps through a resonant lowpass and a vowel filter,
-minor-ninth pads, delayed plucks, a lead, and vinyl crackle.
+The soundtrack is generated with the Web Audio API at 160 BPM in C minor: a
+half-time beat with a driven kick and snare, a saturated sub, and a wobble bass
+that an LFO locked to the beat sweeps through a resonant lowpass, a vowel
+filter, and a screeching high band, with two drive stages and bit-crushed grit.
+Minor-ninth pads, delayed plucks, a lead, and vinyl crackle fill out the mix,
+and a soft clipper and a compressor squeeze it.
 
 The visuals read the same arrangement as the sequencer, so every kick, snare,
 crash, and wobble lines up exactly. The wobble's filter sweep is computed from

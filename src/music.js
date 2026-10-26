@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Thomas Steiner
 // SPDX-License-Identifier: Apache-2.0
 
-// A dubstep soundtrack synthesized live with Web Audio: 150 BPM with a
-// half-time feel, C minor, a driven sub, growling wobble bass in the drops, and
+// A dubstep soundtrack synthesized live with Web Audio: 160 BPM with a
+// half-time feel, C minor, a driven sub, screeching, bit-crushed wobble bass in
+// the drops, and
 // lush pads.
 // The arrangement below drives both the sequencer and the visuals, so a kick on
 // screen is the kick in your ears.
 
-export const BPM = 150;
+export const BPM = 160;
 export const STEP = 60 / BPM / 4;
 export const BAR = STEP * 16;
 const BEAT_HZ = BPM / 60;
@@ -101,26 +102,29 @@ const MELODY = [
 // [start step, length in steps, wobbles per beat, semitones above the root]
 const WOBBLES = [
   [
-    [0, 6, 4, 0],
-    [6, 2, 8, 12],
-    [10, 6, 3, 0],
+    [0, 4, 4, 0],
+    [4, 2, 8, 12],
+    [6, 2, 6, 7],
+    [10, 6, 4, 0],
   ],
   [
-    [0, 4, 2, 0],
-    [4, 4, 6, 7],
-    [10, 3, 8, 12],
-    [13, 3, 4, 3],
+    [0, 6, 8, 0],
+    [6, 2, 4, 12],
+    [10, 3, 6, 3],
+    [13, 3, 12, 0],
   ],
   [
-    [0, 8, 3, 0],
-    [8, 4, 6, 10],
-    [12, 4, 8, 12],
+    [0, 4, 4, 0],
+    [4, 4, 8, 7],
+    [10, 4, 6, 10],
+    [14, 2, 16, 12],
   ],
   [
     [0, 3, 8, 0],
     [3, 3, 8, 3],
-    [6, 4, 2, 0],
-    [10, 6, 6, 7],
+    [6, 2, 12, 12],
+    [10, 4, 4, 0],
+    [14, 2, 16, 12],
   ],
 ];
 
@@ -329,7 +333,11 @@ export class Music {
     this.analyser.fftSize = 256;
     this.analyser.smoothingTimeConstant = 0.7;
     this.fft = new Uint8Array(this.analyser.frequencyBinCount);
-    this.master.connect(compressor);
+    // A soft clipper squeezes the mix before the compressor for density
+    const clipper = ctx.createWaveShaper();
+    clipper.curve = this.driveCurve(1.6);
+    clipper.oversample = '2x';
+    this.master.connect(clipper).connect(compressor);
     compressor.connect(this.analyser);
     this.analyser.connect(this.volume).connect(ctx.destination);
 
@@ -361,8 +369,10 @@ export class Music {
       noise[i] = Math.random() * 2 - 1;
     }
     this.crackleBuffer = this.crackle(6);
-    this.drive = this.driveCurve(6);
-    this.warm = this.driveCurve(1.8);
+    this.drive = this.driveCurve(10);
+    this.warm = this.driveCurve(2.2);
+    this.punch = this.driveCurve(3.5);
+    this.crush = this.crushCurve(10);
 
     setInterval(() => this.tick(), 25);
   }
@@ -398,6 +408,16 @@ export class Music {
       }
     }
     return buffer;
+  }
+
+  // Quantizes the waveform to a few levels, like a cheap sampler
+  crushCurve(levels) {
+    const curve = new Float32Array(1024);
+    for (let i = 0; i < curve.length; i++) {
+      const x = (i / (curve.length - 1)) * 2 - 1;
+      curve[i] = Math.round(x * levels) / levels;
+    }
+    return curve;
   }
 
   driveCurve(amount) {
@@ -652,7 +672,7 @@ export class Music {
     const amp = ctx.createGain();
     this.envelope(amp.gain, t, 1.3 * velocity, 0.002, 0.42);
     const shaper = ctx.createWaveShaper();
-    shaper.curve = this.warm;
+    shaper.curve = this.punch;
     osc.connect(amp).connect(shaper).connect(this.session.dry);
     osc.start(t);
     osc.stop(t + 0.5);
@@ -703,7 +723,9 @@ export class Music {
     osc.frequency.exponentialRampToValueAtTime(160, t + 0.08);
     const amp = ctx.createGain();
     this.envelope(amp.gain, t, 0.6 * velocity, 0.002, 0.12);
-    osc.connect(amp).connect(this.session.dry);
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = this.punch;
+    osc.connect(amp).connect(shaper).connect(this.session.dry);
     osc.start(t);
     osc.stop(t + 0.2);
   }
@@ -783,18 +805,19 @@ export class Music {
     osc.stop(t + duration + 0.05);
   }
 
-  // Detuned saws through a hard drive into a resonant lowpass and a vowel-like
-  // bandpass, both swept by an LFO locked to the beat
+  // Detuned saws through two drive stages into a resonant lowpass and a
+  // vowel-like bandpass, plus bit-crushed grit and a screech an octave up, all
+  // swept by an LFO locked to the beat
   wobble(t, midi, duration, perBeat) {
     const { ctx } = this;
     const frequency = mtof(midi);
     const mix = ctx.createGain();
-    mix.gain.value = 0.4;
+    mix.gain.value = 0.45;
     for (const [type, detune, ratio] of [
-      ['sawtooth', -14, 1],
-      ['sawtooth', 14, 1],
+      ['sawtooth', -16, 1],
+      ['sawtooth', 16, 1],
       ['square', 0, 0.5],
-      ['sawtooth', 5, 2],
+      ['sawtooth', 7, 2],
     ]) {
       const osc = ctx.createOscillator();
       osc.type = type;
@@ -806,6 +829,7 @@ export class Music {
     }
     const shaper = ctx.createWaveShaper();
     shaper.curve = this.drive;
+    shaper.oversample = '2x';
     const lfo = ctx.createOscillator();
     lfo.type = 'sine';
     lfo.frequency.value = perBeat * BEAT_HZ;
@@ -821,20 +845,31 @@ export class Music {
       lfo.connect(depth).connect(filter.frequency);
       return filter;
     };
-    const lowpass = sweep('lowpass', 1400, 1250, 11);
-    const vowel = sweep('bandpass', 900, 600, 4);
+    const lowpass = sweep('lowpass', 1700, 1550, 14);
+    const vowel = sweep('bandpass', 1000, 700, 5);
+    const screech = sweep('bandpass', 2600, 2000, 9);
     const amp = ctx.createGain();
     amp.gain.setValueAtTime(0, t);
-    amp.gain.linearRampToValueAtTime(0.24, t + 0.008);
-    amp.gain.setValueAtTime(0.24, t + duration - 0.03);
+    amp.gain.linearRampToValueAtTime(0.28, t + 0.006);
+    amp.gain.setValueAtTime(0.28, t + duration - 0.025);
     amp.gain.linearRampToValueAtTime(0, t + duration);
     mix.connect(shaper);
-    shaper.connect(lowpass).connect(amp);
-    const vowelLevel = ctx.createGain();
-    vowelLevel.gain.value = 0.6;
-    shaper.connect(vowel).connect(vowelLevel).connect(amp);
+    // The second drive stage grinds what the filters leave
+    const grind = ctx.createWaveShaper();
+    grind.curve = this.warm;
+    shaper.connect(lowpass).connect(grind).connect(amp);
+    const layer = (node, level) => {
+      const gain = ctx.createGain();
+      gain.gain.value = level;
+      node.connect(gain).connect(amp);
+    };
+    layer(shaper.connect(vowel), 0.6);
+    layer(shaper.connect(screech), perBeat >= 6 ? 0.45 : 0.25);
+    const crusher = ctx.createWaveShaper();
+    crusher.curve = this.crush;
+    layer(lowpass.connect(crusher), 0.25);
     amp.connect(this.session.duck);
-    this.send(amp, this.session.reverb, 0.1);
+    this.send(amp, this.session.reverb, 0.08);
   }
 
   pad(t, notes, duration, tail) {
