@@ -49,7 +49,7 @@ const feedback = {
       r += 0.004 * sin(radius * 22.0 - uTime * 4.0);
       float a = angle + 0.012 + 0.025 * sin(uTime * 0.31) + uWobble * 0.03;
       vec2 q = vec2(cos(a), sin(a)) * r / vec2(uAspect, 1.0) + 0.5;
-      vec3 trail = texture2D(uPrevious, q).rgb * 0.95;
+      vec3 trail = texture2D(uPrevious, q).rgb * 0.9;
 
       // The waveform as a line across the middle and as a ring
       float wave = texture2D(uWave, vec2(vUv.x, 0.5)).r - 0.5;
@@ -62,7 +62,7 @@ const feedback = {
       );
 
       vec3 color = hue(fract(uTime * 0.06 + radius * 0.8));
-      vec3 next = trail + color * (line * 0.7 + ring * (0.6 + uKick));
+      vec3 next = trail + color * (line * 0.45 + ring * (0.4 + uKick * 0.5));
       gl_FragColor = vec4(min(next, vec3(1.5)), 1.0);
     }
   `,
@@ -144,6 +144,6 @@ export class Visualizer {
       material.needsUpdate = true;
     }
     material.map = write.texture;
-    material.opacity = amount * 0.45;
+    material.opacity = amount * 0.25;
   }
 }
