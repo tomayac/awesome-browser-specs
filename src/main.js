@@ -4,7 +4,16 @@
 import { deriveStats, loadSpecs } from './data.js';
 import { createEngine } from './engine.js';
 import { Overlay } from './overlay.js';
-import { BAR, Music, PARTS, SONG_END, partIndexAt, since } from './music.js';
+import {
+  BAR,
+  Music,
+  PARTS,
+  SONG_END,
+  isDrop,
+  partIndexAt,
+  since,
+  wobbleAt,
+} from './music.js';
 import { Speaker } from './speech.js';
 import { createIntro } from './parts/intro.js';
 import { createEngines } from './parts/engines.js';
@@ -29,6 +38,9 @@ const CREATORS = {
 const dom = {
   stage: document.querySelector('#stage'),
   start: document.querySelector('#start'),
+  play: document.querySelector('#play'),
+  playFull: document.querySelector('#play-full'),
+  fullscreen: document.querySelector('#fullscreen'),
   status: document.querySelector('#status'),
   hud: document.querySelector('#hud'),
   part: document.querySelector('#hud-part'),
@@ -123,6 +135,31 @@ const envelope = (instrument, time, decay) => {
   return velocity * Math.exp(-dt * decay);
 };
 
+// Low-end energy from the analyser, 0 to 1
+const bassOf = (fft) => {
+  if (!fft) {
+    return 0;
+  }
+  let sum = 0;
+  for (let i = 1; i < 7; i++) {
+    sum += fft[i];
+  }
+  return Math.min(1, Math.max(0, (sum / 6 / 255 - 0.35) / 0.6));
+};
+
+// Shakes and rolls a perspective camera on the hits. Every part sets its camera
+// from scratch each frame, so the offset never accumulates.
+function shake(camera, { kick, snare, wobble }, amount) {
+  if (!camera.isPerspectiveCamera || !amount) {
+    return;
+  }
+  const strength =
+    (kick * 0.45 + wobble.level * (wobble.rate >= 4 ? 0.12 : 0)) * amount;
+  camera.position.x += (Math.random() - 0.5) * strength;
+  camera.position.y += (Math.random() - 0.5) * strength;
+  camera.rotation.z += (Math.random() - 0.5) * snare * 0.05 * amount;
+}
+
 const formatTime = (seconds) =>
   `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
@@ -141,12 +178,18 @@ function frame() {
     snare: envelope('snare', time, 6),
     hat: envelope('hat', time, 16),
     crash: envelope('crash', time, 2),
+    wobble: wobbleAt(time),
+    drop: isDrop(Math.floor(bar)),
     fft: music?.readFft(),
     aspect: viewport.width / viewport.height,
     viewport,
   };
+  state.bass = bassOf(state.fft);
+  const motion = reducedMotion.matches ? 0.2 : 1;
   part.update(state);
+  shake(part.camera, state, motion);
   overlay.update(part.cues, lt);
+  overlay.spectrum(state.fft, state.kick);
 
   const fx = {
     bloom: 1,
@@ -161,13 +204,20 @@ function frame() {
     fx.flash += Math.exp(-lt * 5) * 0.5;
     fx.glitch += Math.exp(-lt * 6) * 0.8;
   }
-  fx.flash += state.crash * 0.08;
-  let punch = state.kick;
-  if (reducedMotion.matches) {
-    fx.flash *= 0.2;
-    fx.glitch *= 0.2;
-    punch *= 0.2;
-  }
+  // The whole frame answers the music: punch on kicks, flashes on the drop
+  // snares, smear on the wobble, and glitches when it wobbles fast
+  const { wobble } = state;
+  fx.flash += state.crash * 0.08 + (state.drop ? state.snare * 0.12 : 0);
+  fx.chroma += wobble.level * 0.01 + state.bass * 0.004;
+  fx.glitch += wobble.rate >= 6 ? wobble.level * 0.3 : 0;
+  fx.bloom *= 1 + state.bass * 0.4;
+  const big = since('crash', time);
+  fx.invert = state.drop && big.velocity === 1 && big.dt < 0.07 ? 1 : 0;
+  let punch = state.kick * 2.2 + (state.drop ? state.snare : 0);
+  fx.flash *= motion;
+  fx.glitch *= motion;
+  fx.invert *= motion;
+  punch *= motion;
   engine.render(part.scene, part.camera, { ...fx, punch, time });
 
   if (music?.playing) {
@@ -176,19 +226,47 @@ function frame() {
   dom.part.textContent = `${String(index + 1).padStart(2, '0')} / ${PARTS[index].name}`;
   dom.clock.textContent = `${formatTime(time)} / ${formatTime(SONG_END)}`;
   dom.progress.style.width = `${(time / SONG_END) * 100}%`;
-  requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
+engine.renderer.setAnimationLoop(frame);
 
 dom.status.textContent =
   data.origin === 'live'
     ? `${stats.total} specs loaded live from browser-specs.github.io`
     : `Live data unavailable, using a snapshot of ${stats.total} specs`;
 dom.start.classList.add('ready');
+dom.play.disabled = false;
+dom.playFull.disabled = false;
 
-async function start() {
+const canFullscreen =
+  document.fullscreenEnabled || document.webkitFullscreenEnabled;
+function toggleFullscreen() {
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    (document.exitFullscreen ?? document.webkitExitFullscreen)?.call(document);
+    return;
+  }
+  const root = document.documentElement;
+  const request = root.requestFullscreen ?? root.webkitRequestFullscreen;
+  Promise.resolve(request?.call(root)).catch(() => {});
+}
+if (!canFullscreen) {
+  dom.playFull.hidden = true;
+  dom.fullscreen.hidden = true;
+}
+const syncFullscreen = () => {
+  const on = Boolean(
+    document.fullscreenElement || document.webkitFullscreenElement,
+  );
+  dom.fullscreen.textContent = on ? 'Exit full screen' : 'Full screen';
+};
+document.addEventListener('fullscreenchange', syncFullscreen);
+document.addEventListener('webkitfullscreenchange', syncFullscreen);
+
+async function start({ fullscreen = false } = {}) {
   if (music) {
     return;
+  }
+  if (fullscreen && canFullscreen) {
+    toggleFullscreen();
   }
   music = new Music();
   await music.play(0);
@@ -210,7 +288,17 @@ function togglePause() {
   }
 }
 
-dom.start.addEventListener('click', start);
+dom.play.addEventListener('click', (event) => {
+  event.stopPropagation();
+  start();
+});
+dom.playFull.addEventListener('click', (event) => {
+  event.stopPropagation();
+  start({ fullscreen: true });
+});
+dom.start.addEventListener('click', () => start());
+dom.fullscreen.addEventListener('click', toggleFullscreen);
+dom.stage.addEventListener('dblclick', toggleFullscreen);
 
 addEventListener('keydown', (event) => {
   if (event.metaKey || event.ctrlKey || event.altKey) {
@@ -220,6 +308,8 @@ addEventListener('keydown', (event) => {
     if (event.key === ' ' || event.key === 'Enter') {
       event.preventDefault();
       start();
+    } else if (event.key === 'f' || event.key === 'F') {
+      start({ fullscreen: true });
     }
     return;
   }
@@ -261,11 +351,7 @@ addEventListener('keydown', (event) => {
       break;
     case 'f':
     case 'F':
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-      } else {
-        document.documentElement.requestFullscreen?.().catch(() => {});
-      }
+      toggleFullscreen();
       break;
     default:
       if (/^[1-8]$/.test(event.key)) {

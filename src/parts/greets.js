@@ -151,12 +151,17 @@ export function createGreets({ stats }) {
   ];
 
   let size = { width: 0, height: 0 };
+  let flow = 0;
+  let last = 0;
   return {
     scene,
     camera,
     cues,
     voice,
-    update({ lb, lt, kick, aspect, viewport }) {
+    update({ lb, lt, kick, bass, wobble, aspect, viewport }) {
+      const dt = lt - last;
+      flow = dt >= 0 && dt < 0.5 ? flow + dt * (1 + wobble.level * 4) : lt;
+      last = lt;
       if (viewport.width !== size.width || viewport.height !== size.height) {
         size = viewport;
         layout(
@@ -169,7 +174,7 @@ export function createGreets({ stats }) {
         strip.scale.set(aspect * 2, 0.68, 1);
       }
       const fade = 1 - clamp01((lb - 11.5) / 1);
-      material.uniforms.uTime.value = lt;
+      material.uniforms.uTime.value = flow;
       material.uniforms.uKick.value = kick;
       material.uniforms.uFade.value = 0.15 + 0.85 * fade;
       material.uniforms.uAspect.value = aspect;
@@ -190,7 +195,9 @@ export function createGreets({ stats }) {
           if (x > -fontPx && x < canvas.width) {
             const y =
               canvas.height / 2 +
-              Math.sin(x * 0.006 + lt * 3) * canvas.height * 0.22;
+              Math.sin(x * 0.006 + lt * 4) *
+                canvas.height *
+                (0.12 + bass * 0.18 + kick * 0.06);
             ctx.fillText(text[i], x, y);
           }
           x += advances[i];

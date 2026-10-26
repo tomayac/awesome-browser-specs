@@ -103,17 +103,23 @@ export function createSolo({ stats }) {
     ...names('webkit', 6.65, 7.9),
   ];
 
+  let flow = 0;
+  let last = 0;
   return {
     scene,
     camera,
     cues,
     voice,
     update({ lb, lt, hat, aspect }) {
+      // Time for the rain runs faster on every hat, and resets on a seek
+      const dt = lt - last;
+      flow = dt >= 0 && dt < 0.5 ? flow + dt * (1 + hat * 3) : lt;
+      last = lt;
       const fade = 1 - clamp01((lb - 3.6) / 0.6);
       for (const mesh of drops) {
         const { speed, phase, spread } = mesh.userData;
         const range = spread * 1.6;
-        mesh.position.y = range / 2 - ((lt * speed + phase * range) % range);
+        mesh.position.y = range / 2 - ((flow * speed + phase * range) % range);
         mesh.position.x = Math.sin(phase * 7) * spread * aspect * 0.8;
         const flicker = Math.random() < hat * 0.25 ? 2 : 1;
         mesh.material.opacity = fade * 0.75 * flicker;

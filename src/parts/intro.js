@@ -120,11 +120,13 @@ export function createIntro({ stats }) {
     camera,
     cues,
     voice,
-    update({ lb, lt, kick }) {
-      const gather = easeInOutCubic(clamp01((lb - 0.25) / 4));
+    update({ lb, lt, kick, bass }) {
+      const gather = easeInOutCubic(clamp01((lb - 0.25) / 3));
       const burst = clamp01((lb - 6.75) / 1.25) ** 3;
       for (let i = 0; i < count; i++) {
-        const wobble = (1 - gather) * 2 + 0.05;
+        // The riser before the drop makes every particle shiver harder
+        const riser = clamp01((lb - 6) / 2) * 0.5;
+        const wobble = (1 - gather) * 2 + 0.05 + riser + bass * 0.15;
         point
           .lerpVectors(starts[i], targets[i], gather)
           .addScaledVector(away[i], burst * 90);
@@ -133,12 +135,12 @@ export function createIntro({ stats }) {
         positions.setXYZ(i, point.x, point.y, point.z);
       }
       positions.needsUpdate = true;
-      material.uniforms.uSize.value = 0.55 + kick * 0.2;
+      material.uniforms.uSize.value = 0.55 + kick * 0.2 + bass * 0.35;
       material.uniforms.uOpacity.value = clamp01(lt / 2);
       dustPoints.rotation.y = lt * 0.02;
       camera.position.set(
-        Math.sin(lt * 0.1) * 4,
-        Math.sin(lt * 0.13) * 1.5,
+        Math.sin(lt * 0.2) * 5,
+        Math.sin(lt * 0.26) * 2,
         44 - gather * 10 + burst * 8,
       );
       camera.lookAt(0, 0, 0);

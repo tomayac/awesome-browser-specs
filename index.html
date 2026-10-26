@@ -10,7 +10,7 @@ SPDX-License-Identifier: Apache-2.0
     <title>Awesome Browser Specs</title>
     <meta
       name="description"
-      content="A demoscene production about every browser spec: live data from browser-specs.github.io, a chillstep soundtrack synthesized in the browser, and robot voices."
+      content="A demoscene production about every browser spec: live data from browser-specs.github.io, a dubstep soundtrack synthesized in the browser, and robot voices."
     />
     <meta name="color-scheme" content="dark" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -19,34 +19,35 @@ SPDX-License-Identifier: Apache-2.0
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&family=IBM+Plex+Mono:wght@500;700&display=swap"
     />
-    <link rel="stylesheet" href="style.css" />
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-        }
-      }
-    </script>
-    <script type="module" src="js/main.js"></script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/style.css" />
+    <script type="module" src="/src/main.js"></script>
   </head>
   <body>
     <div id="stage"></div>
 
-    <button id="start" type="button">
-      <span class="title">Awesome<br />Browser Specs</span>
-      <span class="sub">A demo about every spec the web runs on</span>
-      <span id="status" class="status" role="status">Loading specs…</span>
-      <span class="go">Click or press space</span>
-      <span class="note"
-        >Sound and robot voices on · flashing lights · 1–8 jump to a part ·
-        space pauses · M mutes · F goes full screen</span
-      >
-    </button>
+    <div id="start">
+      <h1 class="title">Awesome<br />Browser Specs</h1>
+      <p class="sub">A demo about every spec the web runs on</p>
+      <p id="status" class="status" role="status">Loading specs…</p>
+      <div class="actions">
+        <button id="play" class="go" type="button" disabled>Play</button>
+        <button id="play-full" class="go" type="button" disabled>
+          Play full screen
+        </button>
+      </div>
+      <p class="note">
+        Sound and robot voices on · flashing lights · 1–8 jump to a part · space
+        pauses · M mutes · F or a double-click toggles full screen
+      </p>
+    </div>
 
-    <div id="hud" aria-hidden="true">
-      <span id="hud-part"></span>
-      <span id="hud-clock"></span>
+    <div id="hud">
+      <span id="hud-part" aria-hidden="true"></span>
+      <span class="hud-end">
+        <span id="hud-clock" aria-hidden="true"></span>
+        <button id="fullscreen" type="button">Full screen</button>
+      </span>
     </div>
     <div id="scrubber" title="Click to seek">
       <div id="progress"></div>

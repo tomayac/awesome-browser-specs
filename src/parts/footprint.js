@@ -132,7 +132,7 @@ export function createFootprint({ stats }) {
     camera,
     cues,
     voice,
-    update({ lb, lt, kick }) {
+    update({ lb, lt, kick, bass, wobble }) {
       monoliths.forEach(({ group, edges }, i) => {
         const p = clamp01((lb - i * BARS_EACH) / 0.6);
         group.position.y = -40 * (1 - easeOutBack(p));
@@ -141,20 +141,21 @@ export function createFootprint({ stats }) {
         const fresh = clamp01(1 - (lb - i * BARS_EACH) / 2);
         edges.material.color
           .copy(edges.userData.color)
-          .multiplyScalar(0.6 + fresh * 1.6 + kick * 0.4);
-        group.rotation.y = Math.sin(lt * 0.3 + i) * 0.12;
+          .multiplyScalar(0.6 + fresh * 1.6 + kick * 1.2 + wobble.level * 0.6);
+        group.rotation.y = Math.sin(lt * 0.6 + i) * 0.12;
+        group.scale.y = 1 + kick * 0.04;
       });
       const focus = Math.min(lb / BARS_EACH, monoliths.length - 1);
       // Keep the newest monolith right of center, clear of the captions
       const x = focus * SPACING;
       camera.position.set(
-        x - 9 + Math.sin(lt * 0.2) * 2,
-        5 + Math.sin(lt * 0.15) * 1.5,
+        x - 9 + Math.sin(lt * 0.4) * 2.5,
+        5 + Math.sin(lt * 0.3) * 1.8,
         24,
       );
       camera.lookAt(x - 4, 7, 0);
       glow.position.set(x + 2, 2, 4);
-      glow.intensity = 12 + kick * 25;
+      glow.intensity = 12 + kick * 40 + bass * 30;
     },
     fx({ kick }) {
       return { bloom: 0.9, threshold: 0.6, chroma: 0.003 + kick * 0.007 };

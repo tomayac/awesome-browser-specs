@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { BAR } from './music.js';
+import { ENGINE } from './palette.js';
 import { dispose, textMesh } from './text.js';
 
 // Captions drawn on top of each part, after bloom and before the glitch pass.
@@ -13,6 +14,7 @@ import { dispose, textMesh } from './text.js';
 //     lines: [{ text, size, font: 'display' | 'mono', color }] }
 
 const MARGIN = 0.12;
+const BANDS = 64;
 const IN = 0.22;
 const OUT = 0.16;
 const STAGGER = 0.06;
@@ -30,6 +32,53 @@ export class Overlay {
     this.built = new Map();
     this.aspect = 1;
     this.heightPx = 1;
+
+    // A spectrum analyzer along the bottom edge, from Blink blue through
+    // WebKit teal to Gecko orange
+    const bar = new THREE.PlaneGeometry(1, 1);
+    bar.translate(0, 0.5, 0);
+    this.bands = new THREE.InstancedMesh(
+      bar,
+      new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0.4,
+        depthTest: false,
+        toneMapped: false,
+      }),
+      BANDS,
+    );
+    const from = new THREE.Color(ENGINE.blink);
+    const mid = new THREE.Color(ENGINE.webkit);
+    const to = new THREE.Color(ENGINE.gecko);
+    const color = new THREE.Color();
+    for (let i = 0; i < BANDS; i++) {
+      const p = i / (BANDS - 1);
+      color.copy(p < 0.5 ? from : mid).lerp(p < 0.5 ? mid : to, (p % 0.5) * 2);
+      this.bands.setColorAt(i, color);
+    }
+    this.bands.visible = false;
+    this.scene.add(this.bands);
+    this.matrix = new THREE.Matrix4();
+  }
+
+  // Bins spread on a curve, so the bass gets more bars than the hiss
+  spectrum(fft, kick) {
+    this.bands.visible = Boolean(fft);
+    if (!fft) {
+      return;
+    }
+    const width = (this.aspect * 2) / BANDS;
+    for (let i = 0; i < BANDS; i++) {
+      const bin = Math.floor(1 + (i / BANDS) ** 1.7 * 90);
+      const height = Math.max(
+        0.002,
+        (fft[bin] / 255) ** 1.6 * 0.12 * (1 + kick * 0.4),
+      );
+      this.matrix.makeScale(width * 0.7, height, 1);
+      this.matrix.setPosition(-this.aspect + width * (i + 0.5), -1, 0);
+      this.bands.setMatrixAt(i, this.matrix);
+    }
+    this.bands.instanceMatrix.needsUpdate = true;
   }
 
   resize(width, height) {

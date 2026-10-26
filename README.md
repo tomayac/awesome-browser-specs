@@ -29,12 +29,13 @@ do.
 ## Controls
 
 - <kbd>Space</kbd>: play or pause
+- <kbd>F</kbd>, a double-click, or the **Full screen** button: toggle full
+  screen
 - <kbd>1</kbd>–<kbd>8</kbd>: jump to a part
 - <kbd>←</kbd> <kbd>→</kbd>: jump four bars
 - <kbd>Page Up</kbd> <kbd>Page Down</kbd>: previous or next part
 - <kbd>R</kbd>: replay from the start
 - <kbd>M</kbd>: mute
-- <kbd>F</kbd>: full screen
 
 ## Data
 
@@ -46,10 +47,16 @@ fetch fails, the demo falls back to the snapshot in
 
 ## Sound
 
-The soundtrack is generated with the Web Audio API at 136 BPM in C minor: a
-half-time beat, a deep sub, beat-locked wobble bass in the drops, minor-ninth
-pads, delayed plucks, a lead, and vinyl crackle. The visuals read the same
-arrangement as the sequencer, so every kick, snare, and crash lines up exactly.
+The soundtrack is generated with the Web Audio API at 150 BPM in C minor: a
+half-time beat with a driven kick, a saturated sub, a growling wobble bass that
+an LFO locked to the beat sweeps through a resonant lowpass and a vowel filter,
+minor-ninth pads, delayed plucks, a lead, and vinyl crackle.
+
+The visuals read the same arrangement as the sequencer, so every kick, snare,
+crash, and wobble lines up exactly. The wobble's filter sweep is computed from
+the phrase being played, which lets the tunnel breathe, the skyline ripple, and
+the image smear and glitch in step with what you hear. A spectrum analyzer runs
+along the bottom of every part.
 
 The voices use the Web Speech API. They read the numbers and the spec names as
 each part presents them, and pronounce the jargon the way people say it (W3C is
@@ -57,13 +64,26 @@ each part presents them, and pronounce the jargon the way people say it (W3C is
 Fred and Zarvox. Elsewhere, it pitches an English voice down. The music ducks
 while a voice speaks.
 
-## Running locally
+## Development
 
-Serve the folder over `http://localhost`, for example:
+The project is based on
+[three-starter](https://github.com/tomayac/three-starter).
 
 ```sh
-python3 -m http.server 5180
+npm install
+npm run dev
 ```
 
-Then open `http://localhost:5180/`. Three.js loads from jsDelivr through an
-import map, and the typefaces load from Google Fonts.
+| Command           | What it does                           |
+| ----------------- | -------------------------------------- |
+| `npm run dev`     | Starts the dev server with hot reload. |
+| `npm run build`   | Builds the site into `docs/`.          |
+| `npm run preview` | Serves `docs/` locally.                |
+
+Production builds load three.js through
+[Cross-Origin Storage](https://github.com/WICG/cross-origin-storage) where the
+browser supports it, so visitors who already have the same three.js chunks from
+another site skip the download.
+
+GitHub Pages serves the `docs/` folder of `main`. On every push to `main`, a
+GitHub Actions workflow rebuilds `docs/` and commits it when the output changed.

@@ -38,7 +38,8 @@ export function createTime({ stats }) {
     );
     streakColors.set([color.r, color.g, color.b, 0, 0, 0], i * 6);
   });
-  scene.add(new THREE.Points(geometry, pointsMaterial(0.2)));
+  const stars = pointsMaterial(0.2);
+  scene.add(new THREE.Points(geometry, stars));
   const streakGeometry = new THREE.BufferGeometry();
   streakGeometry.setAttribute(
     'position',
@@ -156,15 +157,12 @@ export function createTime({ stats }) {
     camera,
     cues,
     voice,
-    update({ lb, lt, kick }) {
+    update({ lb, lt, kick, bass, wobble }) {
       const z = 8 - (lb / 16) * (depth + 8);
-      camera.position.set(
-        Math.sin(lt * 0.3) * 1.5,
-        Math.cos(lt * 0.25) * 1.5,
-        z,
-      );
-      camera.rotation.set(0, 0, lt * 0.05);
-      camera.fov = 75 + kick * 6;
+      camera.position.set(Math.sin(lt * 0.6) * 2, Math.cos(lt * 0.5) * 2, z);
+      camera.rotation.set(0, 0, lt * 0.12 + wobble.level * 0.35);
+      camera.fov = 75 + kick * 8 + wobble.level * 8;
+      stars.uniforms.uSize.value = 0.2 + bass * 0.25 + kick * 0.1;
       camera.updateProjectionMatrix();
       for (const mesh of markers) {
         mesh.quaternion.copy(camera.quaternion);

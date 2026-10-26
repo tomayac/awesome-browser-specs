@@ -242,12 +242,13 @@ export function createEngines({ stats }) {
     camera,
     cues,
     voice,
-    update({ lb, lt, kick, snare }) {
+    update({ lb, lt, kick, snare, wobble, bass }) {
+      const swell = 1 + kick * 0.06 + wobble.level * 0.1;
       for (let i = 0; i < specs.length; i++) {
         const p = easeOutExpo(clamp01((lb - delays[i]) / 1.6));
         arrived[i] = p;
         point.lerpVectors(starts[i], targets[i], p);
-        point.multiplyScalar(1 + kick * 0.04 * p);
+        point.multiplyScalar(1 + (swell - 1) * p);
         point.x += Math.sin(lt * 0.9 + i) * 0.08;
         point.y += Math.cos(lt * 0.7 + i * 1.3) * 0.08;
         positions.setXYZ(i, point.x, point.y, point.z);
@@ -262,7 +263,7 @@ export function createEngines({ stats }) {
         const p = arrived[i];
         const corner = corners[engine];
         const color = baseColors[i];
-        const fade = p * p * (0.6 + snare * 0.8);
+        const fade = p * p * (0.6 + snare * 0.8 + wobble.level * 0.8);
         linePositions.set(
           [
             positions.getX(i),
@@ -290,20 +291,20 @@ export function createEngines({ stats }) {
       lineGeometry.attributes.color.needsUpdate = true;
 
       cores.forEach(({ group, shell, label }, i) => {
-        group.scale.setScalar(1 + kick * 0.35);
-        shell.rotation.set(lt * 0.4 + i, lt * 0.6, 0);
+        group.scale.setScalar(1 + kick * 0.45 + bass * 0.25);
+        shell.rotation.set(lt * 0.8 + i, lt * 1.2 + wobble.level, 0);
         label.quaternion.copy(camera.quaternion);
       });
 
       const distance = 34 + clamp01((lb - 12) / 2) * 12;
-      const swing = Math.sin(lt * 0.15) * 0.55;
+      const swing = Math.sin(lt * 0.28) * 0.6;
       camera.position.set(
         Math.sin(swing) * distance,
-        Math.sin(lt * 0.21) * 4,
+        Math.sin(lt * 0.4) * 4,
         Math.cos(swing) * distance,
       );
       camera.lookAt(-4, 0, 0);
-      camera.fov = 50 - kick * 1.5;
+      camera.fov = 50 - kick * 3;
       camera.updateProjectionMatrix();
     },
     fx({ kick }) {

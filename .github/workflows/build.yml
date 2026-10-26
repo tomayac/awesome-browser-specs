@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026 Thomas Steiner
+# SPDX-License-Identifier: Apache-2.0
+
+# Rebuilds `docs/` on every push to `main` and commits it when the output
+# changed. GitHub Pages serves that folder. Commits made with the workflow's
+# own token don't start new workflow runs, so this never loops.
+name: Build docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-docs
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Commit docs/ when it changed
+        run: |
+          git add docs
+          if git diff --cached --quiet; then
+            echo "docs/ is up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Build docs/"
+          git push

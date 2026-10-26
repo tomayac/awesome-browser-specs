@@ -9,7 +9,7 @@ import { canvasTexture, textMesh } from '../text.js';
 const TUNNEL_RADIUS = 7;
 const TUNNEL_LENGTH = 300;
 const REPEAT = new THREE.Vector2(2, 6);
-const BAR_LENGTH = 26;
+const BAR_LENGTH = 34;
 
 // Every spec title, written around the tunnel wall in its heat color
 function titleAtlas(specs) {
@@ -159,11 +159,14 @@ export function createCategories({ stats }) {
     camera,
     cues,
     voice,
-    update({ lb, lt, kick, snare }) {
+    update({ lb, lt, kick, snare, wobble, bass }) {
       const travelled = lb * BAR_LENGTH;
       atlas.offset.y = (travelled * REPEAT.y) / TUNNEL_LENGTH;
       atlas.offset.x = lt * 0.01;
-      wall.color.setScalar(0.32 + snare * 0.35);
+      wall.color.setScalar(0.3 + snare * 0.35 + wobble.level * 0.25);
+      const breathe = 1 - wobble.level * 0.14 - kick * 0.05;
+      tunnel.scale.set(breathe, breathe, 1);
+      tunnel.rotation.z = lt * 0.15 + wobble.level * 0.2;
       gates.forEach((group, i) => {
         // Gate i flies past the camera at the start of local bar i + 1
         group.position.z = -(i + 1 - lb) * BAR_LENGTH;
@@ -173,16 +176,16 @@ export function createCategories({ stats }) {
         group.children.forEach((child, k) => {
           child.material.opacity = k < group.children.length - 2 ? 1 : near;
         });
-        group.rotation.z = Math.sin(lt * 0.5 + i) * 0.25;
-        group.scale.setScalar(1 + kick * 0.06);
+        group.rotation.z = Math.sin(lt * 0.5 + i) * 0.25 + wobble.level * 0.3;
+        group.scale.setScalar(1 + kick * 0.1 + bass * 0.08);
       });
       camera.position.set(
-        Math.sin(lt * 0.7) * 0.6,
-        Math.cos(lt * 0.5) * 0.4,
+        Math.sin(lt * 1.1) * 0.8,
+        Math.cos(lt * 0.8) * 0.6,
         0,
       );
       camera.rotation.set(0, 0, Math.sin(lt * 0.3) * 0.2);
-      camera.fov = 70 + kick * 3;
+      camera.fov = 70 + kick * 6 + wobble.level * 4;
       camera.updateProjectionMatrix();
     },
     fx({ kick, snare }) {

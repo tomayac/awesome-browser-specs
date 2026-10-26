@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 Thomas Steiner
 // SPDX-License-Identifier: Apache-2.0
 
-// A chillstep soundtrack synthesized live with Web Audio: 136 BPM with a
-// half-time feel, C minor, a deep sub, wobble bass in the drops, and lush pads.
+// A dubstep soundtrack synthesized live with Web Audio: 150 BPM with a
+// half-time feel, C minor, a driven sub, growling wobble bass in the drops, and
+// lush pads.
 // The arrangement below drives both the sequencer and the visuals, so a kick on
 // screen is the kick in your ears.
 
-export const BPM = 136;
+export const BPM = 150;
 export const STEP = 60 / BPM / 4;
 export const BAR = STEP * 16;
 const BEAT_HZ = BPM / 60;
@@ -100,25 +101,31 @@ const MELODY = [
 // [start step, length in steps, wobbles per beat, semitones above the root]
 const WOBBLES = [
   [
-    [0, 7, 2, 0],
-    [10, 6, 3, 7],
-  ],
-  [
-    [0, 6, 1, 0],
-    [6, 2, 4, 12],
-    [10, 6, 2, 3],
-  ],
-  [
-    [0, 7, 4, 0],
-    [10, 4, 2, 7],
-    [14, 2, 8, 12],
+    [0, 6, 4, 0],
+    [6, 2, 8, 12],
+    [10, 6, 3, 0],
   ],
   [
     [0, 4, 2, 0],
-    [4, 3, 3, 10],
-    [10, 6, 1.5, 0],
+    [4, 4, 6, 7],
+    [10, 3, 8, 12],
+    [13, 3, 4, 3],
+  ],
+  [
+    [0, 8, 3, 0],
+    [8, 4, 6, 10],
+    [12, 4, 8, 12],
+  ],
+  [
+    [0, 3, 8, 0],
+    [3, 3, 8, 3],
+    [6, 4, 2, 0],
+    [10, 6, 6, 7],
   ],
 ];
+
+// The second half of the engine triangle builds with a slow, opening sweep
+const BUILD = [[0, 16, 0.5, 0]];
 
 const PLUCK_ORDER = [0, 2, 1, 3, 2, 4, 1, 3];
 
@@ -133,6 +140,19 @@ function where(bar) {
     last: local === part.bars - 1,
     drop: DROPS.includes(part.key) && bar < OUTRO_BAR,
   };
+}
+
+export const isDrop = (bar) => bar >= 0 && bar < SONG_BARS && where(bar).drop;
+
+function wobblesAt(bar) {
+  if (bar < 0 || bar >= SONG_BARS) {
+    return [];
+  }
+  const { key, local, drop } = where(bar);
+  if (drop) {
+    return WOBBLES[bar % 4];
+  }
+  return key === 'engines' && local >= 8 ? BUILD : [];
 }
 
 // The velocity (0 for silence) of a percussive hit
@@ -151,9 +171,15 @@ export function hit(instrument, bar, step) {
         return 1;
       }
       if (step === 10) {
-        return 0.8;
+        return 0.9;
       }
-      return drop && bar % 2 === 1 && step === 6 ? 0.6 : 0;
+      if (!drop) {
+        return 0;
+      }
+      if (bar % 2 === 1 && (step === 3 || step === 6)) {
+        return step === 3 ? 0.6 : 0.8;
+      }
+      return bar % 4 === 3 && step === 14 ? 0.75 : 0;
     case 'snare':
       if (key === 'solo' && last) {
         return 0.25 + (step / 15) * 0.75;
@@ -175,7 +201,7 @@ export function hit(instrument, bar, step) {
       if (!drop) {
         return step % 2 === 0 ? (step % 4 === 2 ? 0.7 : 0.4) : 0;
       }
-      return step % 4 === 2 ? 0.8 : step % 2 === 0 ? 0.45 : 0.25;
+      return step % 4 === 2 ? 0.9 : step % 2 === 0 ? 0.5 : 0.35;
     case 'openhat':
       return drop && bar % 2 === 0 && step === 14 ? 0.6 : 0;
     case 'crash':
@@ -262,6 +288,24 @@ export function since(instrument, time) {
   return { dt: Infinity, velocity: 0 };
 }
 
+// How far the wobble filter is open (0 to 1) at a song position, and how fast it
+// moves, computed from the same phrases the synth plays
+export function wobbleAt(time) {
+  const bar = Math.floor(time / BAR);
+  const into = time - bar * BAR;
+  for (const [start, length, perBeat] of wobblesAt(bar)) {
+    const offset = into - start * STEP;
+    if (offset >= 0 && offset < length * STEP) {
+      const phase = offset * perBeat * BEAT_HZ;
+      return {
+        level: 0.5 + 0.5 * Math.sin(phase * Math.PI * 2),
+        rate: perBeat,
+      };
+    }
+  }
+  return { level: 0, rate: 0 };
+}
+
 export class Music {
   constructor() {
     const ctx = new AudioContext({ latencyHint: 'interactive' });
@@ -276,8 +320,9 @@ export class Music {
     this.master = ctx.createGain();
     this.master.gain.value = 0.8;
     const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.value = -16;
-    compressor.ratio.value = 4;
+    compressor.threshold.value = -20;
+    compressor.knee.value = 6;
+    compressor.ratio.value = 8;
     compressor.attack.value = 0.005;
     compressor.release.value = 0.25;
     this.analyser = ctx.createAnalyser();
@@ -316,7 +361,8 @@ export class Music {
       noise[i] = Math.random() * 2 - 1;
     }
     this.crackleBuffer = this.crackle(6);
-    this.drive = this.driveCurve(2.5);
+    this.drive = this.driveCurve(6);
+    this.warm = this.driveCurve(1.8);
 
     setInterval(() => this.tick(), 25);
   }
@@ -545,11 +591,9 @@ export class Music {
     if (lead) {
       this.lead(t, lead.midi, lead.steps * STEP);
     }
-    if (drop) {
-      for (const [start, length, rate, offset] of WOBBLES[bar % 4]) {
-        if (start === step) {
-          this.wobble(t, chord.root + 12 + offset, length * STEP, rate);
-        }
+    for (const [start, length, rate, offset] of wobblesAt(bar)) {
+      if (start === step) {
+        this.wobble(t, chord.root + 12 + offset, length * STEP, rate);
       }
     }
     if (step === 0) {
@@ -603,35 +647,44 @@ export class Music {
   kick(t, velocity) {
     const { ctx } = this;
     const osc = ctx.createOscillator();
-    osc.frequency.setValueAtTime(150, t);
-    osc.frequency.exponentialRampToValueAtTime(42, t + 0.12);
+    osc.frequency.setValueAtTime(190, t);
+    osc.frequency.exponentialRampToValueAtTime(45, t + 0.09);
     const amp = ctx.createGain();
-    this.envelope(amp.gain, t, velocity, 0.003, 0.5);
-    osc.connect(amp).connect(this.session.dry);
+    this.envelope(amp.gain, t, 1.3 * velocity, 0.002, 0.42);
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = this.warm;
+    osc.connect(amp).connect(shaper).connect(this.session.dry);
     osc.start(t);
-    osc.stop(t + 0.55);
+    osc.stop(t + 0.5);
     this.noise(t, {
       type: 'highpass',
-      frequency: 2500,
-      gain: 0.15 * velocity,
-      decay: 0.01,
+      frequency: 3000,
+      gain: 0.3 * velocity,
+      decay: 0.012,
       out: this.session.dry,
     });
-    this.duck.gain.setValueAtTime(0.25, t);
-    this.duck.gain.linearRampToValueAtTime(1, t + 0.32);
+    this.duck.gain.setValueAtTime(0.12, t);
+    this.duck.gain.linearRampToValueAtTime(1, t + 0.26);
   }
 
-  // A fat half-time snare: noise, a tonal body, and a clap, drowned in reverb
+  // A fat half-time snare: noise, a crack, a tonal body, and a clap
   snare(t, velocity) {
     const { ctx } = this;
     this.noise(t, {
       type: 'bandpass',
-      frequency: 1700,
+      frequency: 1800,
       q: 0.7,
-      gain: 0.75 * velocity,
-      decay: 0.26,
+      gain: 0.85 * velocity,
+      decay: 0.22,
       out: this.session.dry,
-      reverb: 0.9,
+      reverb: 0.55,
+    });
+    this.noise(t, {
+      type: 'highpass',
+      frequency: 4500,
+      gain: 0.5 * velocity,
+      decay: 0.05,
+      out: this.session.dry,
     });
     for (const offset of [0, 0.011, 0.023]) {
       this.noise(t + offset, {
@@ -646,10 +699,10 @@ export class Music {
     }
     const osc = ctx.createOscillator();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(210, t);
-    osc.frequency.exponentialRampToValueAtTime(150, t + 0.09);
+    osc.frequency.setValueAtTime(240, t);
+    osc.frequency.exponentialRampToValueAtTime(160, t + 0.08);
     const amp = ctx.createGain();
-    this.envelope(amp.gain, t, 0.5 * velocity, 0.002, 0.12);
+    this.envelope(amp.gain, t, 0.6 * velocity, 0.002, 0.12);
     osc.connect(amp).connect(this.session.dry);
     osc.start(t);
     osc.stop(t + 0.2);
@@ -717,25 +770,31 @@ export class Music {
     osc.frequency.value = mtof(midi);
     const amp = ctx.createGain();
     amp.gain.setValueAtTime(0, t);
-    amp.gain.linearRampToValueAtTime(0.42, t + 0.03);
-    amp.gain.setValueAtTime(0.42, t + duration - 0.05);
+    amp.gain.linearRampToValueAtTime(0.75, t + 0.03);
+    amp.gain.setValueAtTime(0.75, t + duration - 0.05);
     amp.gain.linearRampToValueAtTime(0, t + duration);
-    osc.connect(amp).connect(this.session.duck);
+    // Saturation adds harmonics that laptop speakers can reproduce
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = this.warm;
+    const level = ctx.createGain();
+    level.gain.value = 0.7;
+    osc.connect(amp).connect(shaper).connect(level).connect(this.session.duck);
     osc.start(t);
     osc.stop(t + duration + 0.05);
   }
 
-  // Detuned saws through a drive and a resonant filter that an LFO, locked to
-  // the beat, opens and closes
+  // Detuned saws through a hard drive into a resonant lowpass and a vowel-like
+  // bandpass, both swept by an LFO locked to the beat
   wobble(t, midi, duration, perBeat) {
     const { ctx } = this;
     const frequency = mtof(midi);
     const mix = ctx.createGain();
-    mix.gain.value = 0.35;
+    mix.gain.value = 0.4;
     for (const [type, detune, ratio] of [
-      ['sawtooth', -12, 1],
-      ['sawtooth', 12, 1],
+      ['sawtooth', -14, 1],
+      ['sawtooth', 14, 1],
       ['square', 0, 0.5],
+      ['sawtooth', 5, 2],
     ]) {
       const osc = ctx.createOscillator();
       osc.type = type;
@@ -747,25 +806,35 @@ export class Music {
     }
     const shaper = ctx.createWaveShaper();
     shaper.curve = this.drive;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.Q.value = 7;
-    filter.frequency.value = 520;
     const lfo = ctx.createOscillator();
     lfo.type = 'sine';
     lfo.frequency.value = perBeat * BEAT_HZ;
-    const depth = ctx.createGain();
-    depth.gain.value = 480;
-    lfo.connect(depth).connect(filter.frequency);
     lfo.start(t);
     lfo.stop(t + duration + 0.05);
+    const sweep = (type, center, range, q) => {
+      const filter = ctx.createBiquadFilter();
+      filter.type = type;
+      filter.Q.value = q;
+      filter.frequency.value = center;
+      const depth = ctx.createGain();
+      depth.gain.value = range;
+      lfo.connect(depth).connect(filter.frequency);
+      return filter;
+    };
+    const lowpass = sweep('lowpass', 1400, 1250, 11);
+    const vowel = sweep('bandpass', 900, 600, 4);
     const amp = ctx.createGain();
     amp.gain.setValueAtTime(0, t);
-    amp.gain.linearRampToValueAtTime(0.16, t + 0.01);
-    amp.gain.setValueAtTime(0.16, t + duration - 0.03);
+    amp.gain.linearRampToValueAtTime(0.24, t + 0.008);
+    amp.gain.setValueAtTime(0.24, t + duration - 0.03);
     amp.gain.linearRampToValueAtTime(0, t + duration);
-    mix.connect(shaper).connect(filter).connect(amp).connect(this.session.duck);
-    this.send(amp, this.session.reverb, 0.12);
+    mix.connect(shaper);
+    shaper.connect(lowpass).connect(amp);
+    const vowelLevel = ctx.createGain();
+    vowelLevel.gain.value = 0.6;
+    shaper.connect(vowel).connect(vowelLevel).connect(amp);
+    amp.connect(this.session.duck);
+    this.send(amp, this.session.reverb, 0.1);
   }
 
   pad(t, notes, duration, tail) {

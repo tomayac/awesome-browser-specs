@@ -153,11 +153,13 @@ export function createTests({ stats }) {
     camera,
     cues,
     voice,
-    update({ lb, lt, kick, fft }) {
+    update({ lb, lt, kick, fft, wobble }) {
       const split = easeInOutCubic(clamp01((lb - 7.5) / 1.5));
       cells.forEach(({ spec, column, row, x, z }, i) => {
         const rise = easeOutExpo(clamp01((lb - row * 0.12) / 1.2));
         const level = fft ? fft[2 + (column % 40)] / 255 : 0;
+        const ripple = 0.5 + 0.5 * Math.sin(column * 0.8 + row * 0.5 - lt * 9);
+        const pump = 0.85 + level * 0.3 + wobble.level * ripple * 0.15;
         BROWSERS.forEach((browser, b) => {
           const value = spec.wpt[browser] ?? 0;
           const height =
@@ -166,7 +168,8 @@ export function createTests({ stats }) {
               (spec.interop + (value - spec.interop) * split) / 100,
             ) *
             HEIGHT *
-            rise;
+            rise *
+            pump;
           matrix.makeScale(width * 0.9, height, CELL * 0.86);
           matrix.setPosition(x + (b - 1) * width, 0, z);
           towers.setMatrixAt(i * 3 + b, matrix);
@@ -190,8 +193,8 @@ export function createTests({ stats }) {
       const p = lb / 16;
       const front = ((rows - 1) / 2) * CELL;
       camera.position.set(
-        Math.sin(lt * 0.2) * 6,
-        14 + Math.sin(lt * 0.3) * 1.5,
+        Math.sin(lt * 0.4) * 7,
+        14 + Math.sin(lt * 0.6) * 2,
         front + 16 - p * (front * 2 + 6),
       );
       camera.lookAt(0, 1, camera.position.z - 12);
