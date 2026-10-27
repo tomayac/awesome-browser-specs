@@ -280,6 +280,67 @@ function frame() {
   dom.clock.textContent = `${formatTime(time)} / ${formatTime(SONG_END)}`;
   dom.progress.style.width = `${(time / SONG_END) * 100}%`;
 }
+// Compiles every shader and uploads every texture before the start screen
+// offers to play: each part runs once at its midpoint, with all its captions,
+// through the whole post-processing chain. Otherwise each would stall the
+// first time it shows.
+async function warmUp() {
+  const { renderer } = engine;
+  const level = new Uint8Array(128).fill(160);
+  const wave = new Uint8Array(256).map((_, i) => 128 + 60 * Math.sin(i / 8));
+  const fx = {
+    bloom: 1,
+    threshold: 0.3,
+    chroma: 0.003,
+    glitch: 0,
+    flash: 0,
+    invert: 0,
+    punch: 0,
+    motion: 1,
+  };
+  for (const [i, part] of parts.entries()) {
+    const lb = PARTS[i].bars / 2;
+    const time = (PARTS[i].startBar + lb) * BAR;
+    const state = {
+      time,
+      lb,
+      lt: lb * BAR,
+      kick: 0.5,
+      snare: 0.5,
+      hat: 0.5,
+      crash: 0,
+      wobble: { level: 0.5, rate: 4 },
+      drop: true,
+      fft: level,
+      bass: 0.5,
+      aspect: viewport.width / viewport.height,
+      viewport,
+    };
+    part.update(state);
+    overlay.prepare(part.cues);
+    overlay.spectrum(level, 0, 1);
+    visualizer.update(renderer, {
+      time,
+      kick: 0,
+      bass: 0,
+      wobble: 0,
+      wave,
+      amount: 1,
+    });
+    await renderer.compileAsync?.(part.scene, part.camera);
+    await renderer.compileAsync?.(overlay.scene, overlay.camera);
+    engine.render(part.scene, part.camera, { ...fx, time });
+  }
+  // Leave nothing of the warm-up behind
+  overlay.update([], 0);
+  overlay.spectrum(null, 0, 0);
+  overlay.peaks.fill(0);
+  visualizer.update(renderer, { amount: 0 });
+  visualizer.clear(renderer);
+}
+
+dom.status.textContent = 'Warming up…';
+await warmUp();
 engine.renderer.setAnimationLoop(frame);
 
 dom.status.textContent =

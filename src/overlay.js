@@ -77,6 +77,14 @@ export class Overlay {
     this.matrix = new THREE.Matrix4();
   }
 
+  // Builds and shows every cue at once, so their textures upload while
+  // warming up; the next `update()` hides them again
+  prepare(cues) {
+    for (const cue of cues) {
+      (this.built.get(cue) ?? this.build(cue)).visible = true;
+    }
+  }
+
   // Bins spread on a curve, so the bass gets more bars than the hiss. At full
   // `amount` the bars reach a fifth of the screen.
   spectrum(fft, kick, amount = 1) {

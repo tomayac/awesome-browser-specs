@@ -109,6 +109,18 @@ export class Visualizer {
     );
     this.display.renderOrder = -1;
     this.display.visible = false;
+    // Start textured, so showing it later never switches shaders
+    this.display.material.map = this.targets[0].texture;
+  }
+
+  // Wipes the trails, as after warming up
+  clear(renderer) {
+    const previous = renderer.getRenderTarget();
+    for (const target of this.targets) {
+      renderer.setRenderTarget(target);
+      renderer.clear();
+    }
+    renderer.setRenderTarget(previous);
   }
 
   resize(width, height) {
